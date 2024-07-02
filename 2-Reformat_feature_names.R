@@ -14,7 +14,7 @@ test_chem_well <- lapply(plates, function(x){
   well_dat}) %>%
   do.call(rbind,.)
 
-#rm(list_all)
+rm(list_all)
 
 #List of features
 

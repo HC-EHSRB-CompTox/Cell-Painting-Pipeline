@@ -19,7 +19,7 @@ library(tictoc)
 # Data from Columbus have been filtered by nuclear area (>20, <900) and cell area (>100, <6700)
 
 #Path to the main folder
-folder_path <- "C:/Users/EUCHO/OneDrive - HC-SC PHAC-ASPC/Desktop/Feb28exp"
+folder_path <- "C:/Users/EUCHO/OneDrive - HC-SC PHAC-ASPC/Desktop/Mikko_HepaRG_CP"
 
 normalizeCP(folder_path)
 
@@ -27,8 +27,8 @@ normalizeCP <- function(folder_path){
   tic()
   
 #Create a new folder to store processed data files
-#dir.create(paste0(Sys.Date(),"_", basename(folder_path), "_well_treatment_level_results"))
-#setwd(paste0(Sys.Date(),"_", basename(folder_path), "_well_treatment_level_results"))
+dir.create(paste0(Sys.Date(),"_", basename(folder_path), "_well_treatment_level_results"))
+setwd(paste0(Sys.Date(),"_", basename(folder_path), "_well_treatment_level_results"))
   
 ############################Load data and plate maps############################
 print("Loading plate maps and feature files")
@@ -40,8 +40,12 @@ df_pm <- lapply(plate_maps, function (filename){
   df <- read_excel(filename, sheet = "plate_stacked")
   df$plate_no <- str_extract(filename, "(?<=plate_)\\d+")
   df
-}) %>%
+  }) %>%
   do.call(rbind, .)
+
+if(any(is.na(df_pm$plate_no))){
+  df_pm$plate_no <- 1
+}
 
 #Add a column for plate number and combine results for multiple plates
 ##Get plate number from folder name
@@ -62,6 +66,10 @@ end_time <- Sys.time()
 print(end_time - start_time)
 
 df_f <- as.data.frame(df_f)
+
+if(any(is.na(df_f$plate_no))){
+  df_f$plate_no <- 1
+}
 
 #Modify columns and column names
 ##Delete unnecessary text in column names
@@ -101,7 +109,7 @@ df_f <- df_f[, colSums(is.na(df_f)) != nrow(df_f)]
 ######################Feature Selection and Normalization#######################
 
 #Normalize all cell-level data to DMSO SD, median, and MAD
-print("Calculating standard deviation, median, and median absolute deviation (MAD) across all DMSO cells")
+print("Calculating standard deviation, median, and median absolute deviation (MAD) across DMSO cells for each plate")
 
 plate_list <- unique(df_pm$plate_no)
 
@@ -221,7 +229,7 @@ test_chem_treat[,col_SD_t] <- test_chem_treat[,col_SD_t]/DMSO_SD_t
 #test_chem_well$Chemical <- paste0(test_chem_well$Chemical, "_",test_chem_well$plate_no, "_",test_chem_well$Well)
 #test_chem_well <- dplyr::select(test_chem_well, -c(Concentration, plate_no, Well))
 
-paste0("Creating lists for Plate ", x)
+print(paste0("Creating lists for Plate ", x))
 
 list_plate <- list(
   test_chem,

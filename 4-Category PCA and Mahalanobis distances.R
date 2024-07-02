@@ -4,7 +4,7 @@ library(stats)
 library(factoextra)
 library(tcplfit2)
 library(ggrepel)
-
+library(cowplot)
 #Filter out categories with fewer than 2 features
 cat_lev_data <- test_chem_well_cat %>%
   group_by(features) %>%
@@ -40,9 +40,8 @@ n <- 1
 while(n<length(ft_cats)){
   if(!is.null(pca_cat[[n]])){
     scree_plot <- fviz_eig(pca_cat[[n]], addlabels = T, ylim = c(0,100), main = paste0(names(pca_cat[n])))
-    
   }
-  scree_plot
+  ggsave(scree_plot, filename = paste0(names(pca_cat[n]), "_screeplot.jpg"))
   n <- n+1
 }
 
@@ -120,7 +119,7 @@ mahal_dist_chem$feat <- str_extract(mahal_dist_chem$feat, "(?<=\\.).*?(?=\\.)")
 rownames(mahal_dist_chem) <- NULL
 
 #Plot Mahalanobis distances 
-ggplot(mahal_dist_chem[mahal_dist_chem$chem[] == "Sorbitol",], aes(x=concentration, y=mahal_dist, colour=feat)) +
+ggplot(mahal_dist_chem[mahal_dist_chem$chem[] == "Dermocybin",], aes(x=concentration, y=mahal_dist, colour=feat)) +
   geom_point() +
   scale_y_continuous() +
   facet_wrap(vars(feat), scales = "free_y")

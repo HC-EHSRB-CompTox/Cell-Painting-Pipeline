@@ -7,8 +7,14 @@ library(tcplfit2)
 
 #test_chem_well.RData as input
 
+#Eliminate feats with variance across samples
+variances <- apply(test_chem_well, 2, var)
+no_var <- which(variances == 0)
+
+test_chem_well <- test_chem_well[, -no_var]
+
 #Principal component analysis (PCA)
-pca <- prcomp(test_chem_well[,-c(1)], center = TRUE, scale = TRUE)
+pca <- prcomp(test_chem_well, center = TRUE, scale = TRUE)
 #pca_x <- pca$x
 
 #Scree plot
@@ -42,7 +48,7 @@ plot(x=1:a, y=cumulative_prop, col="gray50", pch=19, cex=0.5, type="p",
 a <- ncol(pca$rotation)
 
 pca_x <- as.data.frame(pca$x)
-pca_x <- as.data.frame(cbind(chem = test_chem_well[,1], pca_x)) 
+pca_x <- as.data.frame(cbind(chem = rownames(test_chem_well), pca_x)) 
 
 DMSO_pc <- pca_x %>%
   filter(grepl("DMSO", chem))
@@ -51,7 +57,7 @@ DMSO_pc <- DMSO_pc[,-c(1)]
 
 DMSO_mean <- colMeans(DMSO_pc)
 
-dat <- as.matrix(test_chem_well[,-c(1)]) %*% pca$rotation[,1:PC_95]
+dat <- as.matrix(test_chem_well) %*% pca$rotation[,1:PC_95]
 
 #Covariance Matrix
 Cov <- cov(dat)
@@ -66,21 +72,26 @@ mahal_dist <- mahalanobis(dat, DMSO_mean, Cov, inverted = F)
 
 mahal_dist <- as.data.frame(mahal_dist)
 
-mahal_dist <- cbind(chem = test_chem_well[,1], mahal_dist)
+mahal_dist <- cbind(chem = rownames(test_chem_well), mahal_dist)
 
 sample <- as.data.frame(mahal_dist$chem)
 colnames(sample) <- "sample"
 
 sample <- tibble(sample) %>%
-  separate(sample, c("chem", "concentration"), sep = "_", remove = T)
+  separate(sample, c("chem", "concentration", "Well", "Plate"), sep = "_", remove = T)
 
 mahal_dist <- cbind(sample, mahal_dist = mahal_dist$mahal_dist)
+
+mahal_dist <- mahal_dist %>%
+  select(-c("Well", "Plate"))
+
+mahal_dist$concentration <- as.numeric(mahal_dist$concentration)
 
 #Plot Mahalanobis distances 
 ggplot(mahal_dist, aes(x=concentration, y=mahal_dist, colour=chem)) +
   geom_point() +
   scale_y_continuous() +
-  facet_wrap(vars(chem), scales = "free_y")
+  facet_wrap(vars(chem), scales = "free")
 
 #####Tcplfit2 to derive benchmark concentrations#####
 
