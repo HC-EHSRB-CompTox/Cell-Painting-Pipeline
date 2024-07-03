@@ -7,7 +7,7 @@ library(tcplfit2)
 
 #test_chem_well.RData as input
 
-#Eliminate feats with variance across samples
+#Eliminate feats with no variance across samples
 variances <- apply(test_chem_well, 2, var)
 no_var <- which(variances == 0)
 
