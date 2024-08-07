@@ -120,7 +120,10 @@ mahal_dist_chem$feat <- rownames(mahal_dist_chem)
 mahal_dist_chem$feat <- str_extract(mahal_dist_chem$feat, "(?<=\\.).*?(?=\\.)")
 rownames(mahal_dist_chem) <- NULL
 
+x <- chemicals[5]
+
 #Plot Mahalanobis distances 
+if(FALSE){
 lapply (chemicals, function(x){
 
   plot <- ggplot(mahal_dist_chem[mahal_dist_chem$chem[] == x,], aes(x=concentration, y=mahal_dist, colour=feat)) +
@@ -130,7 +133,7 @@ lapply (chemicals, function(x){
 
 plot
   })
-
+}
 
 #####Tcplfit2 to derive benchmark concentrations#####
 
@@ -175,7 +178,7 @@ tcpl_results_cat <- lapply(chemicals, function(x){
     tcpl_chem <- conc_res_modeling(chem_data, vehicle_ctrl)
     
     #Individual feature concentration-response curves
-    concRespPlot(tcpl_chem, ymin= min(chem_data$mahal_dist)-5, ymax=max(chem_data$mahal_dist)+10,  draw.error.arrows = FALSE)
+    #concRespPlot(tcpl_chem, ymin= min(chem_data$mahal_dist)-5, ymax=max(chem_data$mahal_dist)+10,  draw.error.arrows = FALSE)
   
     tcpl_chem
     }) %>%
@@ -199,6 +202,8 @@ a <- a %>% filter(chem != "Sorbitol" & chem != "Staurosporine") %>% filter(hitca
 b <- a %>%
   filter(er<0.99)
 
+chem <- paste(unique(b$chem), collapse ="_")
+
 #Plot all BMC, BMCU, and BMCL together
 BMC_plot <- ggplot(b, aes(x=bmd, y=feat, colour=feat)) +
   geom_point(size=2) +
@@ -213,6 +218,6 @@ BMC_plot <- ggplot(b, aes(x=bmd, y=feat, colour=feat)) +
 BMC_plot
 
 #Save tcpl results
-write_csv(tcpl_results_cat, file = "Category Mahalanobis - tcplResult.csv")
+write_csv(tcpl_results_cat, file = paste0(plates[n],"_",chem,"_Category Mahalanobis - tcplResult.csv"))
 
 

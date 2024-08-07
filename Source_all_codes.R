@@ -15,9 +15,9 @@ n <-1
 while(n<=length(plates)){
   print(paste0(plates[n]))
   
-  rows <- grepl(plates[n], rownames(test_chem_well))
+  rows <- grepl(paste0(plates[n]), rownames(test_chem_well))
   well_data <- test_chem_well[rows, ]
-  source("3_Principal_component_analysis.R")
+  source("3_Global PCA and Mahalnobis distances.R")
   
   n <- n+1
   }
@@ -28,10 +28,10 @@ n <-1
 while(n<=length(plates)){
   print(paste0(plates[n]))
   
-  rows <- grepl(plates[n], rownames(test_chem_well))
+  rows <- grepl(paste0(plates[n]), rownames(test_chem_well))
   well_data <- test_chem_well[rows, ]
   
-  cols <- grepl(plates[n], colnames(test_chem_well_cat))
+  cols <- grepl(paste0(plates[n]), colnames(test_chem_well_cat))
   feats <- as.data.frame(test_chem_well_cat$features)
   colnames(feats) <- "features"
   cat_data <- cbind("features"=feats, test_chem_well_cat[,cols])

@@ -185,6 +185,6 @@ ggsave(paste0(plates[n],"_", paste0(chem_list, collapse = "_"), "_BMC.jpeg"), gg
 )
   
 #Save tcpl results
-save(tcpl_results, file = paste0(plates[n], "_Global fitting Mahalanobis - tcplResult_cutoff_1.RData"))
+save_csv(tcpl_results, file = paste0(plates[n], "_Global fitting Mahalanobis - tcplResult_cutoff_1.csv"))
 
 
