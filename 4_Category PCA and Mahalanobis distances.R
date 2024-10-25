@@ -52,8 +52,7 @@ while(n<length(ft_cats)){
 #Category Mahalanobis distances
   
 cat_mahal_dist <- lapply(ft_cats, function(x){
-  print(paste0(x))
-  
+
   pca <- pca_cat[[x]]
   
   cumulative_prop <- cumsum(pca$sdev^2)/sum(pca$sdev^2)
@@ -120,20 +119,23 @@ mahal_dist_chem$feat <- rownames(mahal_dist_chem)
 mahal_dist_chem$feat <- str_extract(mahal_dist_chem$feat, "(?<=\\.).*?(?=\\.)")
 rownames(mahal_dist_chem) <- NULL
 
-x <- chemicals[5]
-
 #Plot Mahalanobis distances 
-if(FALSE){
+
 lapply (chemicals, function(x){
 
-  plot <- ggplot(mahal_dist_chem[mahal_dist_chem$chem[] == x,], aes(x=concentration, y=mahal_dist, colour=feat)) +
-  geom_point() +
-  scale_y_continuous() +
-  facet_wrap(vars(feat), scales = "free")
+  plot <- ggplot(mahal_dist_chem[mahal_dist_chem$chem == x,], aes(x=concentration, y=mahal_dist, colour=feat)) +
+    geom_point() +
+    scale_y_continuous() +
+    xlab("Concentration \u03BCM") +
+    ylab("Mahalanobis Distance") +
+    facet_wrap(vars(feat), scales = "free") + 
+    theme(legend.position="none")
 
-plot
+  ggsave(paste0(results_dir, plates[n],"_", paste0(x, collapse = "_"), "_Categorical mahalnobis.jpeg"), 
+         plot,
+         width = 40, height = 40, units = "cm")
   })
-}
+
 
 #####Tcplfit2 to derive benchmark concentrations#####
 
@@ -215,9 +217,11 @@ BMC_plot <- ggplot(b, aes(x=bmd, y=feat, colour=feat)) +
         axis.text.y = element_text(size = 6)) +
   facet_wrap(vars(chem))
 
-BMC_plot
+ggsave(paste0(results_dir, plates[n],"_", paste0(chem_list, collapse = "_"), "_Categorical BMC.jpeg"),
+       BMC_plot,
+       width = 40, height = 20, units = "cm")
 
 #Save tcpl results
-write_csv(tcpl_results_cat, file = paste0(plates[n],"_",chem,"_Category Mahalanobis - tcplResult.csv"))
+write_csv(tcpl_results_cat, file = paste0(results_dir, plates[n],"_",chem,"_Category Mahalanobis - tcplResult.csv"))
 
 

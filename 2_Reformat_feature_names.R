@@ -1,3 +1,8 @@
+library(viridis)
+library(RColorBrewer)
+library(ggplot2)
+library(cowplot)
+
 #Categorize features
 #Formats feature names from Columbus to region_channel_module_category number 
 
@@ -11,22 +16,84 @@ test_chem_well <- lapply(plates, function(x){
   well_dat <- as.data.frame(list_all[[x]]["test_chem_well"]) %>%
     mutate(plate_no = gsub("_", "",x)) %>%
     relocate(plate_no, .after = "test_chem_well.Well")
+  
   well_dat}) %>%
   do.call(rbind,.)
 
-#rm(list_all)
+#Plot cell count for each chemical
+
+cell_count <- lapply(plates, function(x){
+  cells <- as.data.frame(list_all[[x]]["test_chem_cc"])
+  cells}) %>%
+  do.call(rbind,.)
+
+colnames(cell_count) <- gsub("test_chem_cc.", "", colnames(cell_count))
+
+cell_count[cell_count$Chemical == "DMSO",]$Concentration <- 1
+
+plate_no <- unique(cell_count$plate_no)
+
+plate_plot <- lapply(plate_no, function(x){
+  
+  plate_data <- cell_count[cell_count$plate_no == x, ]
+  
+  # Create an ordered factor for Chemical with "DMSO" first
+  plate_data$Chemical <- factor(plate_data$Chemical, 
+                                levels = c("DMSO", setdiff(unique(plate_data$Chemical), "DMSO")), 
+                                ordered = TRUE)
+  
+  y_min <- min(plate_data[plate_data$Chemical == "DMSO",]$cell_count)
+  y_max <- max(plate_data[plate_data$Chemical == "DMSO",]$cell_count)
+  
+  plate_plot <- ggplot(plate_data, aes(x=Concentration, y=cell_count, colour=Chemical)) + 
+    geom_point() + 
+    geom_ribbon(aes(ymin = y_min, ymax = y_max), fill = "grey70", alpha = 0.5) +        
+    geom_hline(yintercept = median(plate_data[plate_data$Chemical == "DMSO",]$cell_count), linetype = "dashed", color = "red") +
+    scale_y_continuous() +
+    ylim(min(plate_data$cell_count)-50, max(plate_data$cell_count)+50) +
+    scale_x_log10() +
+    theme(legend.position="none") +
+    scale_color_brewer(palette = "Paired") +
+    geom_text(aes(label = Well), size = 2, vjust = -1, hjust = 0.5) +
+    facet_wrap(vars(Chemical), scales = "free") +
+    ggtitle(paste0("Plate ", x))
+  
+    plate_plot
+  }) 
+
+nrow <- length(plate_no)
+
+combined_plot <- do.call(plot_grid, c(plate_plot, nrow = nrow))
+
+ggsave("Cell count by chemical_all plates.jpeg",
+       combined_plot,
+       width = 20, height = 40, units = "cm"
+  ) 
+
+DMSO_plot <- ggplot(cell_count[cell_count$Chemical == "DMSO",], aes(x= as.character(plate_no), y=cell_count, colour=plate_no)) + 
+  geom_point() + 
+  scale_y_continuous() +
+  theme(legend.position="none") +
+  xlab("Plate Number") +
+  ylab("Cell count") +
+  geom_text(aes(label = Well), size = 2, vjust = -1, hjust = 0.5) +
+  ggtitle("Vehicle Control (DMSO)")
+
+ggsave("Cell count_DMSO_all plates.jpeg",
+       DMSO_plot,
+       width = 25, height = 25, units = "cm"
+  ) 
 
 #List of features
-
 variances <- apply(test_chem_well[-c(1:4)], 2, var)
-test_chem_well <- test_chem_well[, variances != 0]
+test_chem_well <- test_chem_well[, variances != 0 & !is.na(variances)]
 
 features <- as.data.frame(colnames(test_chem_well[-c(1:4)]))
 colnames(features) <- c("features")
 
-module <- c("Axial","Compactness","Radial","Symmetry", "Gabor", "Haralick", "SER", "Intensity", "Profile","Ratio", "Length", "Width", "Roundness", "Area")
-region <- c("Cell", "Nucleus", "Cytoplasm", "Cyto", "Membrane", "Ring")
-channel <- c("AGP", "Mito", "DNA", "RNA", "ER")
+module <- c("Axial","Compactness","Radial","Symmetry", "Gabor", "Haralick", "SER", "Intensity","intensity","Profile","Ratio", "Length", "Width", "Roundness", "Area", "position")
+region <- c("Nuclei", "nuclei","Cell", "Nucleus", "Cytoplasm", "Cyto", "Membrane", "Ring")
+channel <- c("AGP", "Mito", "DNA", "RNA", "ER","Shape", "position")
 
 features$region <- str_match(features$features, paste(region, collapse = "|"))
 features$channel <- str_match(features$features, paste(channel, collapse = "|"))
@@ -35,6 +102,7 @@ features$module <- str_match(features$features, paste(module, collapse = "|"))
 #Combine Gabor, Haralick, and SER in the Texture module
 features['module'][features['module']=="Gabor"|features['module']=="Haralick"|features['module']=="SER"] <- "Texture"
 features['module'][features['module']=="Ratio"|features['module']=="Length"|features['module']=="Width"|features['module']=="Roundness"|features['module']=="Area"] <- "Morph"
+features['region'][features['region']=="nuclei"] <- "Nucleus"
 
 #Add category number
 features <- features %>%

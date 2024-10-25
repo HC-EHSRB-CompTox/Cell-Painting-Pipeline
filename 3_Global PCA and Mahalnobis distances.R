@@ -4,6 +4,8 @@
 library(stats)
 library(factoextra)
 library(tcplfit2)
+library(patchwork)
+library(cowplot)
 
 #test_chem_well.RData as input
 
@@ -85,15 +87,40 @@ sample <- tibble(sample) %>%
 mahal_dist <- cbind(sample, mahal_dist = mahal_dist$mahal_dist)
 
 mahal_dist <- mahal_dist %>%
-  select(-c("Well", "Plate"))
+  select(-c("Plate"))
 
 mahal_dist$concentration <- as.numeric(mahal_dist$concentration)
 
+mahal_dist <- mahal_dist %>%
+  group_by(chem) %>%
+  mutate(conc_count = length(unique(concentration)))
+
+mahal_dmso <- mahal_dist %>%
+  filter(chem == "DMSO")
+
+mahal_dist <- mahal_dist %>%
+  filter(conc_count > 3) 
+
+mahal_dist <- rbind(mahal_dist, mahal_dmso)
+
 #Plot Mahalanobis distances 
-ggplot(mahal_dist, aes(x=concentration, y=mahal_dist, colour=chem)) +
-  geom_point() +
-  scale_y_continuous() +
-  facet_wrap(vars(chem), scales = "free")
+chem_list <- unique(mahal_dist$chem)
+
+mahal_dist[mahal_dist$chem == "DMSO",]$concentration <- 1
+
+ggsave(paste0(results_dir, paste0(chem_list, collapse = "_"), "_Global Mahalanobis.jpeg"),
+       
+       ggplot(mahal_dist, aes(x=concentration, y=mahal_dist, colour=chem)) + 
+         geom_point() + 
+         scale_y_continuous() +
+         scale_x_log10() +
+         xlab("Concentration \u03BCM") +
+         ylab("Mahalanobis Distance") +
+         geom_text(aes(label = Well), size = 2, vjust = -1, hjust = 0.5) +
+         facet_wrap(vars(chem), scales = "free"),
+       
+       width = 35, height = 20, units = "cm"
+       ) 
 
 #####Tcplfit2 to derive benchmark concentrations#####
 
@@ -147,12 +174,13 @@ conc_resp_noVC <- function(test_chem){
 }
 
 #Model concentration-response for each chemical and plot individually  
+
 tcpl_results <- lapply(chem_list, function(x){
     chem_data <- test_chem_res %>%
-      filter(grepl(x, chem))
+      filter(chem == x)
     tcpl_chem <- conc_res_modeling(chem_data, vehicle_ctrl)
     
-    jpeg(file = paste0(x, "_", plates[n], "_tcplfit.jpg"))
+    jpeg(file = paste0(results_dir, plates[n], "_", x, "_tcplfit.jpg"))
     concRespPlot(tcpl_chem, ymin= min(chem_data$mahal_dist)-5, ymax=max(chem_data$mahal_dist)+10, draw.error.arrows = FALSE)
     dev.off()
     
@@ -174,17 +202,19 @@ if(FALSE){
 }
 
 #Plot all BMC, BMCU, and BMCL together
-ggsave(paste0(plates[n],"_", paste0(chem_list, collapse = "_"), "_BMC.jpeg"), ggplot(tcpl_results, aes(x=bmd, y=name, colour=name)) +
-    geom_point(size=2) +
-    geom_errorbar(aes(xmin = bmdl, xmax = bmdu), width = 0.2) +
-    scale_x_log10() +
-    xlab("Median Best BMC (1SD above vehicle control) \u03BCM") +
-    ylab("Chemicals"),
+ggsave(paste0(results_dir, paste0(chem_list, collapse = "_"), "Global_BMC.jpeg"), 
+       
+       ggplot(tcpl_results, aes(x=bmd, y=name, colour=name)) +
+         geom_point(size=2) +
+         geom_errorbar(aes(xmin = bmdl, xmax = bmdu), width = 0.2) +
+         scale_x_log10() +
+         xlab("Median Best BMC (1SD above vehicle control) \u03BCM") +
+         ylab("Chemicals"),
     
-    width = 20, height = 20, units = "cm"
-)
+    width = 40, height = 20, units = "cm"
+  )
   
 #Save tcpl results
-save_csv(tcpl_results, file = paste0(plates[n], "_Global fitting Mahalanobis - tcplResult_cutoff_1.csv"))
+write_csv(tcpl_results, file = paste0(results_dir, plates[n], "_Global fitting Mahalanobis - tcplResult.csv"))
 
 

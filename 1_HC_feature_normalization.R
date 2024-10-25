@@ -26,10 +26,6 @@ library(tictoc)
 normalizeCP <- function(folder_path){
   tic()
   
-#Create a new folder to store processed data files
-#dir.create(paste0(Sys.Date(),"_", basename(folder_path), "_well_treatment_level_results"))
-#setwd(paste0(Sys.Date(),"_", basename(folder_path), "_well_treatment_level_results"))
-  
 ############################Load data and plate maps############################
 print("Loading plate maps and feature files")
 
@@ -38,7 +34,7 @@ plate_maps <- list.files(folder_path, pattern = "map", full.names = TRUE)
 
 df_pm <- lapply(plate_maps, function (filename){
   df <- read_excel(filename, sheet = "plate_stacked")
-  df$plate_no <- str_extract(filename, "(?<=plate_)\\d+")
+  df$plate_no <- str_extract(filename, "(?i)(?<=plate_)\\d+")
   df
   }) %>%
   do.call(rbind, .)
@@ -50,8 +46,8 @@ if(any(is.na(df_pm$plate_no))){
 #Add a column for plate number and combine results for multiple plates
 ##Get plate number from folder name
 compile_csv <- function(folder_path, plate_no) {
-    rbindlist(lapply(list.files(folder_path, full.names = TRUE, pattern = "\\.csv$"), fread)) %>%
-    mutate(plate_no = str_extract(plate_no, "(?<=plate_)\\d+")) %>%
+    rbindlist(lapply(list.files(folder_path, full.names = TRUE, pattern = "\\.csv$"), fread), use.names = TRUE) %>%
+    mutate(plate_no = str_extract(plate_no, "(?i)(?<=plate[ _])\\d+")) %>%
     relocate(plate_no, .after = "WellName")
   }
 
@@ -84,6 +80,8 @@ col_keep <- grep(paste(ft_keep, collapse = "|"), names(df_f), value = TRUE)
 
 df_f <- df_f[, col_keep]
 
+df_f$plate_no <- as.character(df_f$plate_no)
+
 print(paste0(ncol(df_f)," features"))
 
 ################################################################################
@@ -100,7 +98,7 @@ df_f <- df_f %>%
   ungroup()
 
 #Remove columns with all NA
-df_f <- df_f[, colSums(is.na(df_f)) != nrow(df_f)]
+df_f <- df_f[, colSums(is.na(df_f)) < nrow(df_f)]
 
 #Number of wells available for analysis
 #nlevels(factor(df$))
@@ -116,9 +114,10 @@ plate_list <- unique(df_pm$plate_no)
 #Creates of list for each plate that contains normalized cell-, well-, and treatment-level data
 list_all <- lapply(plate_list, function(x){
 
-  x <- as.numeric(x) 
+  #x <- as.numeric(x) 
 
-  test_chem <- subset(df_f, plate_no == x)
+  test_chem <- df_f %>%
+    filter(plate_no == x)
   
   test_chem_cc <- test_chem[,c(1:4)] %>% 
     group_by(plate_no, Well, Chemical, Concentration) %>%
@@ -144,7 +143,7 @@ list_all <- lapply(plate_list, function(x){
   DMSO_SD <- as.data.frame(t(apply(DMSO, 2, function(x)sd(x, na.rm=TRUE))))
 
 ###Identify features with SD > 0
-  DMSO_SD <- DMSO_SD[, DMSO_SD[1,]!=0]
+  DMSO_SD <- DMSO_SD[,DMSO_SD[1,]!= 0 & !is.na(DMSO_SD[1,])]
 
 ##DMSO median
   DMSO_med <- as.data.frame(t(apply(DMSO, 2, function(x)median(x, na.rm=TRUE))))
@@ -154,7 +153,7 @@ list_all <- lapply(plate_list, function(x){
   DMSO_mad <- as.data.frame(t(apply(DMSO, 2, function(x)mad(x, constant = 1, na.rm=TRUE)))*1.4826)
 
 ##Identify features with a MAD of 0
-  DMSO_mad_zero <- DMSO_mad[, DMSO_mad[1, ]==0]
+  DMSO_mad_zero <- DMSO_mad[, DMSO_mad[1, ]==0 & !is.na(DMSO_mad[1, ])]
 
   if(ncol(DMSO_mad_zero)>0){
     DMSO_mad_zero <- DMSO_mad_zero[rep(1, nrow(test_chem)), ]
@@ -162,7 +161,7 @@ list_all <- lapply(plate_list, function(x){
     }
 
 ##Features with non-zero MAD
-  DMSO_mad <- DMSO_mad[, DMSO_mad[1,]!=0]
+  DMSO_mad <- DMSO_mad[, DMSO_mad[1,]!=0 & !is.na(DMSO_mad[1, ])]
   DMSO_mad <- DMSO_mad[rep(1, nrow(test_chem)), ]
   col_mad <- colnames(DMSO_mad)
 
@@ -259,8 +258,8 @@ return(list_all)
 
 #write.csv(test_chem_treat, paste0(Sys.Date(), "_",basename(folder_path), "_Treatment-level data.csv"), row.names = FALSE)
 
-#save(list_all, file = paste0("Normalized_CP_output_",basename(folder_path), ".RData"))
-
 }
 
 list_all <- normalizeCP(folder_path)
+
+save(list_all, file = paste0("Normalized_CP_output_",basename(folder_path), ".RData"))
