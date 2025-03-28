@@ -6,10 +6,6 @@ library(cowplot)
 #Categorize features
 #Formats feature names from Columbus to region_channel_module_category number 
 
-#data <- read.csv("C:/Users/EUCHO/OneDrive - HC-SC PHAC-ASPC/Documents/CompTox-Cell-Painting-Pipeline/2024-04-10_Feb28exp_Well-level results2.csv")
-
-#Load "List_plate_1_2.RData"
-
 plates <- names(list_all)
 
 test_chem_well <- lapply(plates, function(x){
@@ -30,6 +26,25 @@ cell_count <- lapply(plates, function(x){
 colnames(cell_count) <- gsub("test_chem_cc.", "", colnames(cell_count))
 
 cell_count[cell_count$Chemical == "DMSO",]$Concentration <- 1
+
+cell_count_avg <- cell_count %>%
+  group_by(Chemical, Concentration) %>%
+  summarise(Average_cc = mean(cell_count),
+            SD = sd(cell_count))
+
+cell_count_avg$relative_cc <- cell_count_avg$Average_cc/cell_count_avg[cell_count_avg$Chemical == "DMSO", ]$Average_cc
+
+cytotoxic_conc <- cell_count_avg %>%
+  filter(relative_cc < 0.5)
+
+relative_cell_count <- ggplot(cell_count_avg[cell_count_avg$Chemical != "DMSO",], aes(x = Concentration, y = relative_cc, colour = Chemical)) +
+    geom_point() +
+    theme_bw() + 
+    theme(legend.position="none") +
+    scale_x_log10() +
+    ylim(0, 1.2) +
+    geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+    facet_wrap(vars(Chemical), scales = "free")
 
 plate_no <- unique(cell_count$plate_no)
 
@@ -70,6 +85,11 @@ ggsave("Cell count by chemical_all plates.jpeg",
        width = 20, height = 40, units = "cm"
   ) 
 
+ggsave("Relative cell count.jpeg",
+       relative_cell_count,
+       width = 50, height = 30, units = "cm"
+) 
+
 DMSO_plot <- ggplot(cell_count[cell_count$Chemical == "DMSO",], aes(x= as.character(plate_no), y=cell_count, colour=plate_no)) + 
   geom_point() + 
   scale_y_continuous() +
@@ -84,42 +104,12 @@ ggsave("Cell count_DMSO_all plates.jpeg",
        width = 25, height = 25, units = "cm"
   ) 
 
-#List of features
 
-###For processing Nyffeler's data
-if(FALSE){
-# test_chem_well <- df %>%
-#   select(-c("N_objects", "N_fields"))
+#Exclude wells with >50% reduction in relative cell count
+test_chem_well <- test_chem_well %>%
+  filter(!paste(test_chem_well.Chemical, test_chem_well.Concentration) %in% paste(cytotoxic_conc$Chemical, cytotoxic_conc$Concentration))
 
-  test_chem_well <- test_chem_well %>%
-    group_by(PlateID) %>%
-    mutate(Plate = cur_group_id()) %>%
-    ungroup() %>%
-    select(Plate, everything(), -c("PlateID"))
-  
-  test_chem_well$Plate <- paste0("plate",test_chem_well$Plate)
-  
-  plates <- unique(test_chem_well$Plate)
-  
-#  test_chem_well <- test_chem_well %>%
-#    group_by(Plate, Well) %>%
-#    mutate(Well_2 = row_number()) %>%
-#    ungroup()
-  
-#  Concentration <- rep(0, nrow(test_chem_well))
-  
-#  Well <- paste0(test_chem_well$Well, "_", test_chem_well$Well_2)
-  
-#  test_chem_well <- test_chem_well %>%
-#    select(-c(Well_2))
-  
-#  test_chem_well <- cbind(Concentration = Concentration,Well, test_chem_well)
-  
-  test_chem_well$Chemical <- gsub("Dimethyl sulfoxide", "DMSO", test_chem_well$Chemical)
-  test_chem_well$Concentration[is.na(test_chem_well$Concentration)] <- 0
-  
-}
-####
+###########################################################################
 
 variances <- apply(test_chem_well, 2, var)
 variances[1:4] <- 1
@@ -129,7 +119,7 @@ test_chem_well <- test_chem_well[, variances != 0 & !is.na(variances)]
 features <- as.data.frame(colnames(test_chem_well[-c(1:4)]))
 colnames(features) <- c("features")
 
-module <- c("Axial","Compactness","Radial","Symmetry", "Gabor", "Haralick", "SER", "Intensity","intensity","Profile","Ratio", "Length", "Width", "Roundness", "Area", "position")
+module <- c("Axial","Compactness","Radial","Symmetry", "Gabor", "Haralick", "SER", "Intensity","intensity","Profile","Ratio", "Length", "Width", "Roundness", "Area", "position", "Position")
 region <- c("Nuclei", "nuclei","Cell", "Nucleus", "Cytoplasm", "Cyto", "Membrane", "Ring")
 channel <- c("AGP", "Mito", "DNA", "RNA", "ER","Shape", "position", "Position")
 

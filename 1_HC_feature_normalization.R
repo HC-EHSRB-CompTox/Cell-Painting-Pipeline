@@ -137,15 +137,15 @@ list_all <- lapply(plate_list, function(x){
 
   DMSO_avg_cc <- DMSO_avg_cc[!duplicated(DMSO_avg_cc), ] %>% 
     dplyr::select(-c(Well)) %>% group_by(plate_no) %>% summarize_all(mean)
-
+ 
 #Remove sample info columns (will be added back in)
   DMSO <- as.data.frame(DMSO[,-c(1:4)])
 
 ##DMSO SD
-  DMSO_SD <- as.data.frame(t(apply(DMSO, 2, function(x)sd(x, na.rm=TRUE))))
+#  DMSO_SD <- as.data.frame(t(apply(DMSO, 2, function(x)sd(x, na.rm=TRUE))))
 
 ###Identify features with SD > 0
-  DMSO_SD <- DMSO_SD[,DMSO_SD[1,]!= 0 & !is.na(DMSO_SD[1,])]
+#  DMSO_SD <- DMSO_SD[,DMSO_SD[1,]!= 0 & !is.na(DMSO_SD[1,])]
 
 ##DMSO median
   DMSO_med <- as.data.frame(t(apply(DMSO, 2, function(x)median(x, na.rm=TRUE))))
@@ -207,14 +207,22 @@ test_chem_well <- test_chem %>%
 #Calculate the mean of all chemicals and concentrations
 print("Calculating treatment-level mean values") 
 
-test_chem_treat <- test_chem_well %>%
-  group_by(Chemical, Concentration) %>%
-  summarize_all(mean, na.rm=TRUE) %>%
-  ungroup()
+#test_chem_treat <- test_chem_well %>%
+#  group_by(Well, Chemical, Concentration) %>%
+#  summarize_all(mean, na.rm=TRUE) %>%
+#  ungroup()
 
 #z-standardization: Scale well- and treatment-level data to SD of DMSO
-DMSO_SD_w <- DMSO_SD[rep(1, nrow(test_chem_well)), ]
-col_SD_w <- colnames(DMSO_SD_w)
+print("Scaling well-level data to SD of vehicle control")
+
+DMSO_SD_w <- test_chem_well[test_chem_well$Chemical == "DMSO", ] %>%
+  select(-c(Well, Chemical, Concentration)) %>%
+  summarise_all(mean, na.rm = TRUE)
+
+DMSO_SD_w <- DMSO_SD_w[rep(1, nrow(test_chem_well)), ] 
+
+col_SD_w <- colnames(DMSO_SD_w[])
+
 test_chem_well[,col_SD_w] <- test_chem_well[,col_SD_w]/DMSO_SD_w
 
 test_chem_well <- test_chem_well %>%
@@ -222,9 +230,9 @@ test_chem_well <- test_chem_well %>%
   dplyr::select(-contains("obj"))
 #  filter(Chemical != "Sorbitol")
 
-DMSO_SD_t <- DMSO_SD[rep(1, nrow(test_chem_treat)), ]
-col_SD_t <- colnames(DMSO_SD_t)
-test_chem_treat[,col_SD_t] <- test_chem_treat[,col_SD_t]/DMSO_SD_t
+#DMSO_SD_t <- DMSO_SD[rep(1, nrow(test_chem_treat)), ]
+#col_SD_t <- colnames(DMSO_SD_t)
+#test_chem_treat[,col_SD_t] <- test_chem_treat[,col_SD_t]/DMSO_SD_t
 
 #Concatenate chemical name, plate number, and well ID in one column
 #test_chem_well$Chemical <- paste0(test_chem_well$Chemical, "_",test_chem_well$plate_no, "_",test_chem_well$Well)
@@ -234,13 +242,12 @@ print(paste0("Creating lists for Plate ", x))
 
 list_plate <- list(
   test_chem,
-  DMSO_SD,
   test_chem_cc,
-  test_chem_well,
-  test_chem_treat
+  test_chem_well
+#  test_chem_treat
   )
 
-names(list_plate) <- c("test_chem", "DMSO_SD", "test_chem_cc", "test_chem_well", "test_chem_treat")
+names(list_plate) <- c("test_chem", "test_chem_cc", "test_chem_well")
 
 list_plate
 
@@ -257,7 +264,6 @@ return(list_all)
 #print("Saving well-level and treatment-level data as a .RData file")
 
 #write.csv(test_chem_well, paste0(Sys.Date(), "_",basename(folder_path), "_Well-level data_1.csv"), row.names = FALSE)
-
 #write.csv(test_chem_treat, paste0(Sys.Date(), "_",basename(folder_path), "_Treatment-level data.csv"), row.names = FALSE)
 
 }

@@ -37,22 +37,10 @@ pca_cat <- lapply(ft_cats, function(x){
 }) %>%
   setNames(ft_cats)
 
-if(FALSE){
-n <- 1
-
-while(n<length(ft_cats)){
-  if(!is.null(pca_cat[[n]])){
-    scree_plot <- fviz_eig(pca_cat[[n]], addlabels = T, ylim = c(0,100), main = paste0(names(pca_cat[n])))
-  }
-  #ggsave(scree_plot, filename = paste0(names(pca_cat[n]), "_screeplot.jpg"))
-  n <- n+1
-}
-}
-
 #Category Mahalanobis distances
-  
-cat_mahal_dist <- lapply(ft_cats, function(x){
 
+cat_mahal_dist <- lapply(ft_cats, function(x){
+  
   pca <- pca_cat[[x]]
   
   cumulative_prop <- cumsum(pca$sdev^2)/sum(pca$sdev^2)
@@ -88,9 +76,12 @@ cat_mahal_dist <- lapply(ft_cats, function(x){
   
   sample_info <- mahal_dist$chem
   sample_info <- tibble(sample_info) %>%
-    separate(sample_info, c("chem", "concentration", "well"), sep = "_", remove = T)
+    separate(sample_info, c("chem", "concentration", "well", "well2"), sep = "_", remove = T)
   
-  mahal_dist <- cbind(sample_info, mahal_dist = mahal_dist$mahal_dist)
+  sample_info$well <- paste0(sample_info$well, "_", sample_info$well2)
+  
+  mahal_dist <- cbind(sample_info[1:3], mahal_dist = mahal_dist$mahal_dist)
+  
   return(mahal_dist)
   }) %>%
   setNames(ft_cats)
@@ -121,19 +112,30 @@ rownames(mahal_dist_chem) <- NULL
 
 #Plot Mahalanobis distances 
 
-lapply (chemicals, function(x){
+lapply(chemicals, function(x){
 
-  plot <- ggplot(mahal_dist_chem[mahal_dist_chem$chem == x,], aes(x=concentration, y=mahal_dist, colour=feat)) +
+  plot <- ggplot(mahal_dist_chem[mahal_dist_chem$chem == x,], aes(x= as.numeric(concentration), y=mahal_dist, colour=feat)) +
     geom_point() +
     scale_y_continuous() +
-    xlab("Concentration \u03BCM") +
+    scale_x_log10() +
+    scale_color_manual(values = turbo(48)) +
+    xlab("Concentration (\u03BCM)") +
     ylab("Mahalanobis Distance") +
-    facet_wrap(vars(feat), scales = "free") + 
-    theme(legend.position="none")
-
+    theme_classic() +
+    theme(legend.position="none",
+          axis.title.x = element_text(size = 20, margin = margin(t=15)),
+          axis.title.y = element_text(size = 20, margin = margin(r=15), angle = 90),
+          axis.text.x = element_text(size = 10, colour = "black"),
+          axis.text.y = element_text(size = 10, colour = "black"),
+          strip.text.x = element_text(size = 9, face = "bold"),
+          strip.background =element_rect(fill=NA),
+          axis.line=element_line(linewidth = 1)) +
+    facet_wrap(vars(feat), scales = "free") 
+  
+  
   ggsave(paste0(results_dir, plates[n],"_", paste0(x, collapse = "_"), "_Categorical mahalnobis.jpeg"), 
          plot,
-         width = 40, height = 40, units = "cm")
+         width = 45, height = 45, units = "cm")
   })
 
 
@@ -193,34 +195,50 @@ tcpl_results_cat <- lapply(chemicals, function(x){
 split_col <- str_split_fixed(tcpl_results_cat$name, "_", 2)
 tcpl_results_cat <- cbind("chem"=split_col[,1], "feat"=split_col[,2], tcpl_results_cat[,-1])
 
-#BMC filtering criteria
- #Eliminate BMCs without ACC and BMCU/BMCL
-a <- tcpl_results_cat[!is.na(tcpl_results_cat$bmdu) & !is.na(tcpl_results_cat$acc) & !is.na(tcpl_results_cat$bmdl),]
+####BMC filtering criteria
+#Eliminate BMCs without ACC and BMCU/BMCL
+tcpl_results_cat <- tcpl_results_cat[!is.na(tcpl_results_cat$bmdu) & !is.na(tcpl_results_cat$acc) & !is.na(tcpl_results_cat$bmdl),]
 
-a <- a %>% filter(chem != "Sorbitol" & chem != "Staurosporine") %>% filter(hitcall>0.99)
+tcpl_results_cat <- tcpl_results_cat %>% filter(chem != "Sorbitol" & chem != "Staurosporine") %>% filter(hitcall>0.90)
+
+tcpl_results_cat$chem <- recode(tcpl_results_cat$chem,
+       "5-Nitro-2-(3-phenylpropylamino)benzoic acid" = "NPPB")
 
 #Model error parameter cutoff
-b <- a %>%
+tcpl_results_cat <- tcpl_results_cat %>%
   filter(er<0.99)
 
-chem <- paste(unique(b$chem), collapse ="_")
+tcpl_results_cat$exp <- paste0(basename(folder_path))
+
+chem <- paste(unique(tcpl_results_cat$chem), collapse ="_")
 
 #Plot all BMC, BMCU, and BMCL together
-BMC_plot <- ggplot(b, aes(x=bmd, y=feat, colour=feat)) +
+BMC_plot <- ggplot(tcpl_results_cat, aes(x=bmd, y=feat, colour=feat)) +
   geom_point(size=2) +
   geom_errorbar(aes(xmin = bmdl, xmax = bmdu), width = 0.2) +
   scale_x_log10() +
   xlab("Best BMC (1SD above vehicle control) \u03BCM") +
   ylab("Category") +
+  theme_bw() +
   theme(legend.position="none",
-        axis.text.y = element_text(size = 6)) +
+        axis.title.x = element_text(size = 13, margin = margin(t=15)),
+        axis.title.y = element_text(size = 13),
+        axis.text.x = element_text(size = 10, colour = "black"),
+        axis.text.y = element_text(size = 6, colour = "black",margin=margin(r=5)),
+        strip.text.x = element_text(size = 9, face = "bold"),
+        strip.background =element_rect(fill=NA),
+        panel.border = element_rect(color = 'black', 
+                                    fill = NA, 
+                                    linewidth = 1)) +
   facet_wrap(vars(chem))
+  
 
-ggsave(paste0(results_dir, plates[n],"_", paste0(chem_list, collapse = "_"), "_Categorical BMC.jpeg"),
+ggsave(paste0(results_dir, plates[n],"_Categorical BMC.jpeg"),
        BMC_plot,
-       width = 40, height = 20, units = "cm")
+       width = 25, height = 35, units = "cm")
 
 #Save tcpl results
-write_csv(tcpl_results_cat, file = paste0(results_dir, plates[n],"_",chem,"_Category Mahalanobis - tcplResult.csv"))
+write_csv(tcpl_results_cat, file = paste0(results_dir, plates[n], "_Category Mahalanobis - tcplResult.csv"))
+
 
 

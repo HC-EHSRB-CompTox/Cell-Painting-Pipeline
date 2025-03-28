@@ -6,6 +6,7 @@ library(factoextra)
 library(tcplfit2)
 library(patchwork)
 library(cowplot)
+library(MASS)
 
 #test_chem_well.RData as input
 
@@ -16,8 +17,6 @@ no_var <- which(variances == 0)
 if(length(no_var) != 0 & is.numeric(no_var)){
   well_data <- well_data[, -no_var]
 }
-
-rownames(well_data) <- rownames(test_chem_well)[grepl(paste0(plates[n],"$"), rownames(test_chem_well))]
 
 #Principal component analysis (PCA)
 pca <- prcomp(well_data, center = TRUE, scale = TRUE)
@@ -34,24 +33,6 @@ PC_90 <- length(which(cumulative_prop<0.90))+1
 PC_95 <- length(which(cumulative_prop<0.95))+1
 PC_99 <- length(which(cumulative_prop<0.99))+1
 
-#Plot PCs (Nyffeler 2021 code)
-if(FALSE){
-a <- length(cumulative_prop)
-  
-plot(x=1:a, y=cumulative_prop, col="gray50", pch=19, cex=0.5, type="p",
-     ylim=c(0,1), xlab="# of components", ylab="Proportion of variance retained", main="Principal components of HTPP U-2OS data")
-  #horizontal part
-  segments(x0=30, y0=0.90, x1 = PC_90, col="blue", lty='dashed')
-  segments(x0=30, y0=0.95, x1 = PC_95, col="blue", lty='solid', lwd=2)
-  segments(x0=30, y0=0.99, x1 = PC_99, col="blue", lty='dotted')
-  #vertical part
-  segments(x0=PC_90, y0=0.1, y1 = 0.90, col="blue", lty='dashed')
-  segments(x0=PC_95, y0=0.1, y1 = 0.95, col="blue", lty='solid', lwd=2)
-  segments(x0=PC_99, y0=0.1, y1 = 0.99, col="blue", lty='dotted')
-  text(x=c(PC_90, PC_95, PC_99), y=0.05, labels=c(PC_90, PC_95, PC_99), srt=90)
-  text(x=0, y=c(0.9, 0.95, 0.99),  labels=paste0(c(90,95,99), "%"), cex=0.7)
-}
-  
 #Rotation Matrix
 a <- ncol(pca$rotation)
 
@@ -63,7 +44,8 @@ DMSO_pc <- pca_x %>%
 
 DMSO_pc <- DMSO_pc[,-c(1)]
 
-DMSO_mean <- colMeans(DMSO_pc)
+#DMSO_mean <- colMeans(DMSO_pc)
+DMSO_mean <- apply(DMSO_pc, 2, mean)
 
 dat <- as.matrix(well_data) %*% pca$rotation[,1:PC_95]
 
@@ -74,9 +56,11 @@ Cov <- cov(dat)
 det(Cov)
 isSymmetric(Cov)
 
+solved_cov <- ginv(Cov)
+
 #Mahalanobis distance determination
 
-mahal_dist <- mahalanobis(dat, DMSO_mean, Cov, inverted = F) 
+mahal_dist <- mahalanobis(dat, DMSO_mean, solved_cov, inverted = T) 
 
 mahal_dist <- as.data.frame(mahal_dist)
 
@@ -91,7 +75,7 @@ sample <- tibble(sample) %>%
 mahal_dist <- cbind(sample, mahal_dist = mahal_dist$mahal_dist)
 
 mahal_dist <- mahal_dist %>%
-  select(-c("Plate"))
+  dplyr::select(-c("Plate"))
 
 mahal_dist$concentration <- as.numeric(mahal_dist$concentration)
 
@@ -107,26 +91,41 @@ mahal_dist <- mahal_dist %>%
 
 mahal_dist <- rbind(mahal_dist, mahal_dmso)
 
-write.csv(mahal_dist, paste0(plates[n], "_Mahalnobis distances.csv"))
+mahal_dist$plate_no <- plates[n]
 
-#Plot Mahalanobis distances 
+exp_name <- paste0("Nyffeler_Plate_",n)
+mahal_dist$exp <- exp_name
+
+mahal_dist_all[[length(mahal_dist_all) + 1]] <- mahal_dist
+
+####################
+##Plot Mahalanobis distances
+
 chem_list <- unique(mahal_dist$chem)
 
 mahal_dist[mahal_dist$chem == "DMSO",]$concentration <- 1
 
-ggsave(paste0(results_dir, paste0(chem_list, collapse = "_"), "_Global Mahalanobis.jpeg"),
+ggsave(paste0(results_dir, paste0(exp_name), "_", paste0(plates[n]), "_Global Mahalanobis.jpeg"),
        
-       ggplot(mahal_dist, aes(x=concentration, y=mahal_dist, colour=chem)) + 
-         geom_point() + 
-         scale_y_continuous() +
-         scale_x_log10() +
-         xlab("Concentration \u03BCM") +
-         ylab("Mahalanobis Distance") +
-         geom_text(aes(label = Well), size = 2, vjust = -1, hjust = 0.5) +
-         facet_wrap(vars(chem), scales = "free"),
-       
-       width = 35, height = 20, units = "cm"
-       ) 
+     ggplot(mahal_dist, aes(x=concentration, y=mahal_dist, colour=chem)) + 
+      geom_point() + 
+      geom_hline(yintercept = median(mahal_dmso$mahal_dist), linetype = "dashed", color = "maroon4") +
+      geom_ribbon(aes(ymin = median(mahal_dmso$mahal_dist) - mad(mahal_dmso$mahal_dist), ymax = median(mahal_dmso$mahal_dist) + mad(mahal_dmso$mahal_dist)), fill = "thistle3", colour = NA, alpha = 0.5) +
+      scale_y_continuous() +
+      scale_x_log10() +
+      #scale_color_manual(values = viridis(12)) +
+      xlab("Concentration (\u03BCM)") +
+      ylab("Mahalanobis Distance") +
+      theme_classic() +
+      theme(legend.position="none",
+            axis.title.x = element_text(size = 17, margin = margin(t=15)),
+            axis.title.y = element_text(size = 17, margin = margin(r=15)),
+            axis.text.x = element_text(size = 12),
+            axis.text.y = element_text(size = 12)) +
+      facet_wrap(vars(chem), scales = "free") +
+      theme( strip.text.x = element_text(size = 12, face = "bold")),
+      
+      width = 35, height = 20, units = "cm") 
 
 #####Tcplfit2 to derive benchmark concentrations#####
 
@@ -147,77 +146,34 @@ vehicle_ctrl <- mahal_dist %>%
 conc_res_modeling <- function(test_chem, vehicle_ctrl){ 
   
   row <- list(conc = as.numeric(test_chem$concentration),
-             resp = test_chem$mahal_dist,
-             bmed = vehicle_ctrl$Median,
-             cutoff = vehicle_ctrl$nMad,
-             onesd = vehicle_ctrl$nMad,
-             name = paste0(test_chem$chem[1]),
-             assay = "Mahalanobis distance (cutoff = 1)")
-  
-  concRespCore(row, conthits = TRUE, aicc = FALSE, force.fit = FALSE,  bidirectional = TRUE,
-            fitmodels=c("cnst", "hill", "poly1", "poly2", "pow", "exp2", "exp3","exp4", "exp5"))
-  
-  }
-
-#Function to model concentration-response using concRespCore of tcplfit2 using the lowest concentration as baseline
-if(FALSE){
-conc_resp_noVC <- function(test_chem){ 
-  
-  row <- list(conc = as.numeric(test_chem$concentration),
               resp = test_chem$mahal_dist,
-              bmed = median(test_chem[test_chem$concentration == min(test_chem$concentration), "mahal_dist"]),
-              cutoff = mad(test_chem[test_chem$concentration == min(test_chem$concentration), "mahal_dist"]),
-              onesd = mad(test_chem[test_chem$concentration == min(test_chem$concentration), "mahal_dist"]),
+              bmed = vehicle_ctrl$Median,
+              cutoff = vehicle_ctrl$nMad,
+              onesd = vehicle_ctrl$nMad,
               name = paste0(test_chem$chem[1]),
               assay = "Mahalanobis distance (cutoff = 1)")
   
   concRespCore(row, conthits = TRUE, aicc = FALSE, force.fit = FALSE,  bidirectional = TRUE,
-               fitmodels=c("cnst", "hill", "poly1", "poly2", "pow", "exp2", "exp3","exp4", "exp5")
-              )
+               fitmodels=c("cnst", "hill", "poly1", "poly2", "pow", "exp2", "exp3","exp4", "exp5"))
   
-}
 }
 
 #Model concentration-response for each chemical and plot individually  
 tcpl_results <- lapply(chem_list, function(x){
-    chem_data <- test_chem_res %>%
-      filter(chem == x)
-    tcpl_chem <- conc_res_modeling(chem_data, vehicle_ctrl)
-    
-    jpeg(file = paste0(results_dir, plates[n], "_", x, "_tcplfit.jpg"))
-    concRespPlot(tcpl_chem, ymin= min(chem_data$mahal_dist)-5, ymax=max(chem_data$mahal_dist)+10, draw.error.arrows = FALSE)
-    dev.off()
-    
-    tcpl_chem
-    }) %>%
-      do.call(rbind, .)
-
-#Model concentration-response for each chemical and plot individually  
-if(FALSE){
-  tcpl_noVC <- lapply(chem_list, function(x){
   chem_data <- test_chem_res %>%
-    filter(grepl(x, chem))
-  tcpl_chem <- conc_resp_noVC(chem_data)
-  concRespPlot(tcpl_chem, ymin= min(chem_data$mahal_dist)-5, ymax=max(chem_data$mahal_dist)+10,  draw.error.arrows = FALSE)
+    filter(chem == x)
+  tcpl_chem <- conc_res_modeling(chem_data, vehicle_ctrl)
+  
+  if(tcpl_chem$hitcall > 0.9){
+    jpeg(file = paste0(results_dir, plates[n], "_", x, "_tcplfit.jpg"))
+    concRespPlot(tcpl_chem, ymin=min(chem_data$mahal_dist)-5, ymax=max(chem_data$mahal_dist)+10, draw.error.arrows = FALSE)
+    dev.off()
+  }
   
   tcpl_chem
 }) %>%
-  do.call(rbind, .)
-}
+      do.call(rbind, .)
 
-#Plot all BMC, BMCU, and BMCL together
-if(FALSE){ggsave(paste0(results_dir, paste0(chem_list, collapse = "_"), "Global_BMC.jpeg"), 
-       
-       ggplot(tcpl_results, aes(x=bmd, y=name, colour=name)) +
-         geom_point(size=2) +
-         geom_errorbar(aes(xmin = bmdl, xmax = bmdu), width = 0.2) +
-         scale_x_log10() +
-         xlab("Median Best BMC (1SD above vehicle control) \u03BCM") +
-         ylab("Chemicals"),
-    
-    width = 40, height = 20, units = "cm"
-  )
-}
 
 ggsave(paste0(results_dir, paste0(plates[n]), "_Global_BMC.jpeg"), 
        
@@ -225,12 +181,17 @@ ggsave(paste0(results_dir, paste0(plates[n]), "_Global_BMC.jpeg"),
          geom_point(size=2) +
          geom_errorbar(aes(xmin = bmdl, xmax = bmdu), width = 0.2) +
          scale_x_log10() +
+         theme(legend.position="none") +
          xlab("Median Best BMC (1SD above vehicle control) \u03BCM") +
          ylab("Chemicals"),
        
        width = 40, height = 20, units = "cm"
 )
 
+tcpl_results$plate_no <- plates[n]
+tcpl_results$exp <- exp_name
+
+tcpl_results_all[[length(tcpl_results_all) + 1]] <- tcpl_results
 
 #Save tcpl results
 write_csv(tcpl_results, file = paste0(results_dir, plates[n], "_Global fitting Mahalanobis - tcplResult.csv"))
