@@ -180,17 +180,6 @@ print(paste0("Normalizing Plate ", x ," cell-level data to DMSO median and MAD")
 
   rm(DMSO, DMSO_med, DMSO_mad, DMSO_mad_zero)
 
-#hist(DMSO[,1], main = "Histogram", xlab = "Values", ylab = "Frequency")
-
-#1. Eliminate Features without variation
-
-#a <- df_f[ ,-nearZeroVar(df_f)]
-
-# to see near zero variance columns 
-#NZV<- nearZeroVar(df, saveMetrics = TRUE)
-
-# 2. Eliminate features with low reproducibility among biological replicates (Pearson correlation < 0.5)
-
 ################################################################################
 ####################Data Aggregation by Well and Treatment######################
 
