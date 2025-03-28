@@ -43,6 +43,8 @@ if(any(is.na(df_pm$plate_no))){
   df_pm$plate_no <- 1
 }
 
+df_pm$plate_no <- as.character(df_pm$plate_no)
+
 #Add a column for plate number and combine results for multiple plates
 ##Get plate number from folder name
 compile_csv <- function(folder_path, plate_no) {

@@ -13,7 +13,11 @@ library(cowplot)
 variances <- apply(well_data, 2, var)
 no_var <- which(variances == 0)
 
-well_data <- well_data[, -no_var]
+if(length(no_var) != 0 & is.numeric(no_var)){
+  well_data <- well_data[, -no_var]
+}
+
+rownames(well_data) <- rownames(test_chem_well)[grepl(paste0(plates[n],"$"), rownames(test_chem_well))]
 
 #Principal component analysis (PCA)
 pca <- prcomp(well_data, center = TRUE, scale = TRUE)
@@ -103,6 +107,8 @@ mahal_dist <- mahal_dist %>%
 
 mahal_dist <- rbind(mahal_dist, mahal_dmso)
 
+write.csv(mahal_dist, paste0(plates[n], "_Mahalnobis distances.csv"))
+
 #Plot Mahalanobis distances 
 chem_list <- unique(mahal_dist$chem)
 
@@ -149,8 +155,7 @@ conc_res_modeling <- function(test_chem, vehicle_ctrl){
              assay = "Mahalanobis distance (cutoff = 1)")
   
   concRespCore(row, conthits = TRUE, aicc = FALSE, force.fit = FALSE,  bidirectional = TRUE,
-            fitmodels=c("cnst", "hill", "poly1", "poly2", "pow", "exp2", "exp3","exp4", "exp5"),
-            bmr_scale = 1.349)
+            fitmodels=c("cnst", "hill", "poly1", "poly2", "pow", "exp2", "exp3","exp4", "exp5"))
   
   }
 
@@ -174,7 +179,6 @@ conc_resp_noVC <- function(test_chem){
 }
 
 #Model concentration-response for each chemical and plot individually  
-
 tcpl_results <- lapply(chem_list, function(x){
     chem_data <- test_chem_res %>%
       filter(chem == x)
@@ -202,7 +206,7 @@ if(FALSE){
 }
 
 #Plot all BMC, BMCU, and BMCL together
-ggsave(paste0(results_dir, paste0(chem_list, collapse = "_"), "Global_BMC.jpeg"), 
+if(FALSE){ggsave(paste0(results_dir, paste0(chem_list, collapse = "_"), "Global_BMC.jpeg"), 
        
        ggplot(tcpl_results, aes(x=bmd, y=name, colour=name)) +
          geom_point(size=2) +
@@ -213,7 +217,21 @@ ggsave(paste0(results_dir, paste0(chem_list, collapse = "_"), "Global_BMC.jpeg")
     
     width = 40, height = 20, units = "cm"
   )
-  
+}
+
+ggsave(paste0(results_dir, paste0(plates[n]), "_Global_BMC.jpeg"), 
+       
+       ggplot(tcpl_results, aes(x=bmd, y=name, colour=name)) +
+         geom_point(size=2) +
+         geom_errorbar(aes(xmin = bmdl, xmax = bmdu), width = 0.2) +
+         scale_x_log10() +
+         xlab("Median Best BMC (1SD above vehicle control) \u03BCM") +
+         ylab("Chemicals"),
+       
+       width = 40, height = 20, units = "cm"
+)
+
+
 #Save tcpl results
 write_csv(tcpl_results, file = paste0(results_dir, plates[n], "_Global fitting Mahalanobis - tcplResult.csv"))
 

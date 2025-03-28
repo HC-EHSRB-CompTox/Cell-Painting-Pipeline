@@ -85,7 +85,45 @@ ggsave("Cell count_DMSO_all plates.jpeg",
   ) 
 
 #List of features
-variances <- apply(test_chem_well[-c(1:4)], 2, var)
+
+###For processing Nyffeler's data
+if(FALSE){
+# test_chem_well <- df %>%
+#   select(-c("N_objects", "N_fields"))
+
+  test_chem_well <- test_chem_well %>%
+    group_by(PlateID) %>%
+    mutate(Plate = cur_group_id()) %>%
+    ungroup() %>%
+    select(Plate, everything(), -c("PlateID"))
+  
+  test_chem_well$Plate <- paste0("plate",test_chem_well$Plate)
+  
+  plates <- unique(test_chem_well$Plate)
+  
+#  test_chem_well <- test_chem_well %>%
+#    group_by(Plate, Well) %>%
+#    mutate(Well_2 = row_number()) %>%
+#    ungroup()
+  
+#  Concentration <- rep(0, nrow(test_chem_well))
+  
+#  Well <- paste0(test_chem_well$Well, "_", test_chem_well$Well_2)
+  
+#  test_chem_well <- test_chem_well %>%
+#    select(-c(Well_2))
+  
+#  test_chem_well <- cbind(Concentration = Concentration,Well, test_chem_well)
+  
+  test_chem_well$Chemical <- gsub("Dimethyl sulfoxide", "DMSO", test_chem_well$Chemical)
+  test_chem_well$Concentration[is.na(test_chem_well$Concentration)] <- 0
+  
+}
+####
+
+variances <- apply(test_chem_well, 2, var)
+variances[1:4] <- 1
+
 test_chem_well <- test_chem_well[, variances != 0 & !is.na(variances)]
 
 features <- as.data.frame(colnames(test_chem_well[-c(1:4)]))
@@ -93,7 +131,7 @@ colnames(features) <- c("features")
 
 module <- c("Axial","Compactness","Radial","Symmetry", "Gabor", "Haralick", "SER", "Intensity","intensity","Profile","Ratio", "Length", "Width", "Roundness", "Area", "position")
 region <- c("Nuclei", "nuclei","Cell", "Nucleus", "Cytoplasm", "Cyto", "Membrane", "Ring")
-channel <- c("AGP", "Mito", "DNA", "RNA", "ER","Shape", "position")
+channel <- c("AGP", "Mito", "DNA", "RNA", "ER","Shape", "position", "Position")
 
 features$region <- str_match(features$features, paste(region, collapse = "|"))
 features$channel <- str_match(features$features, paste(channel, collapse = "|"))
@@ -126,7 +164,7 @@ colnames(ft_colnames2) <- c("features")
 ft_colnames <- as.data.frame(paste0(ft_colnames$region,"_",ft_colnames$channel,"_",ft_colnames$module,"_",ft_colnames$cat_group, "_", ft_colnames$ft_no))
 
 #Add chemical and concentration columns back in and combine with feature names
-#sample_info <- as.data.frame(colnames(test_chem_well[c(1:2)]))
+sample_info <- as.data.frame(colnames(test_chem_well[c(1:4)]))
 
 sample_info <- as.data.frame(c("Well", "Plate", "Chemical", "Concentration"))
 
@@ -139,8 +177,9 @@ fts <- rbind(sample_info, ft_colnames)
 colnames(test_chem_well) <- t(fts) # run code up to here for BMDExpress formatting
 
 #Concatenate chemical name, plate number, and well ID in one column
+
 test_chem_well$Chemical <- paste0(test_chem_well$Chemical, "_",test_chem_well$Concentration, "_", test_chem_well$Well, "_", test_chem_well$Plate)
-test_chem_well <- dplyr::select(test_chem_well, -c(Concentration, Well, Plate))
+test_chem_well <- test_chem_well[, !names(test_chem_well) %in% c("Plate", "Well","Concentration")]
 
 ##Sets sample info as row names
 rows <- test_chem_well$Chemical

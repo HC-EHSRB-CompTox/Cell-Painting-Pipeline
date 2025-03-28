@@ -151,8 +151,7 @@ conc_res_modeling <- function(test_chem, vehicle_ctrl){
               assay = "Mahalanobis distance (cutoff = 1)")
   
   concRespCore(row, conthits = TRUE, aicc = TRUE, force.fit = FALSE,  bidirectional = TRUE,
-               fitmodels=c("cnst", "hill", "poly1", "poly2", "pow", "exp2", "exp3","exp4", "exp5"),
-               bmr_scale = 1.349)
+               fitmodels=c("cnst", "hill", "poly1", "poly2", "pow", "exp2", "exp3","exp4", "exp5"))
 }
 
 
