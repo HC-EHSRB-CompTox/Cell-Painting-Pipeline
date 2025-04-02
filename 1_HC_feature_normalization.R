@@ -77,7 +77,7 @@ colnames(df_f) <- sub(".* - ", "", colnames(df_f))
 colnames(df_f) <-  gsub(" ", "_", colnames(df_f))
 
 ##Delete unnecessary columns
-ft_keep <- c("Well", "plate_no", "Nucle", "AGP", "ER", "DNA", "RNA", "Mito", "Cyto")
+ft_keep <- c("Well", "plate_no", "Nucle", "AGP", "ER", "DNA", "RNA", "Mito", "Cyto", "position", "Position")
 col_keep <- grep(paste(ft_keep, collapse = "|"), names(df_f), value = TRUE)
 
 df_f <- df_f[, col_keep]
@@ -102,161 +102,127 @@ df_f <- df_f %>%
 #Remove columns with all NA
 df_f <- df_f[, colSums(is.na(df_f)) < nrow(df_f)]
 
-#Number of wells available for analysis
-#nlevels(factor(df$))
+#Join well ID and plate number
+df_f$Well <- paste(df_f$Well, df_f$plate_no, sep = "_")
+
+df_f <- df_f %>%
+  dplyr::select(-c(plate_no))
 
 ################################################################################
 ######################Feature Selection and Normalization#######################
 
-#Normalize all cell-level data to DMSO SD, median, and MAD
-print("Calculating standard deviation, median, and median absolute deviation (MAD) across DMSO cells for each plate")
+test_chem <- df_f
 
-plate_list <- unique(df_pm$plate_no)
-
-#Creates of list for each plate that contains normalized cell-, well-, and treatment-level data
-list_all <- lapply(plate_list, function(x){
-
-  #x <- as.numeric(x) 
-
-  test_chem <- df_f %>%
-    filter(plate_no == x)
-  
-  test_chem_cc <- test_chem[,c(1:4)] %>% 
-    group_by(plate_no, Well, Chemical, Concentration) %>%
-    tally(name = "cell_count") %>%
-    ungroup()
-
-##calculate DMSO(solvent) median and median absolute deviation (MAD) using all control cells across the plates
-  DMSO <- subset(df_f,  Chemical == "DMSO" & plate_no == x)
+##calculate ctrl(solvent) median and median absolute deviation (MAD) using all control cells across the plates
+ctrl_cells <- subset(df_f,  Chemical == ctrl_group)
 
 #Average cell count (cc) per well
-  DMSO_avg_cc <- DMSO[, c(1,4)] %>%
-    group_by(plate_no, Well) %>%
-    add_tally(name = "cell_count") %>%
-    ungroup()
+ctrl_avg_cc <- ctrl_cells[, c(1,3)] %>%
+  group_by(Well) %>%
+  add_tally(name = "cell_count") %>%
+  ungroup()
 
-  DMSO_avg_cc <- DMSO_avg_cc[!duplicated(DMSO_avg_cc), ] %>% 
-    dplyr::select(-c(Well)) %>% group_by(plate_no) %>% summarize_all(mean)
- 
+ctrl_avg_cc <- ctrl_avg_cc[!duplicated(ctrl_avg_cc), ] %>% 
+  dplyr::select(-c(Well)) %>% summarize_all(mean)
+
 #Remove sample info columns (will be added back in)
-  DMSO <- as.data.frame(DMSO[,-c(1:4)])
+ctrl_info <- as.data.frame(ctrl_cells[,c(1:3)])
+ctrl_cells <- as.data.frame(ctrl_cells[,-c(1:3)])
 
-##DMSO SD
-#  DMSO_SD <- as.data.frame(t(apply(DMSO, 2, function(x)sd(x, na.rm=TRUE))))
+##ctrl median
+ctrl_med <- as.data.frame(t(apply(ctrl_cells, 2, function(x)median(x, na.rm=TRUE))))
+ctrl_med <- ctrl_med[rep(1, nrow(test_chem)), ]
 
-###Identify features with SD > 0
-#  DMSO_SD <- DMSO_SD[,DMSO_SD[1,]!= 0 & !is.na(DMSO_SD[1,])]
-
-##DMSO median
-  DMSO_med <- as.data.frame(t(apply(DMSO, 2, function(x)median(x, na.rm=TRUE))))
-  DMSO_med <- DMSO_med[rep(1, nrow(test_chem)), ]
-
-##DMSO MAD
-  DMSO_mad <- as.data.frame(t(apply(DMSO, 2, function(x)mad(x, constant = 1, na.rm=TRUE)))*1.4826)
+##ctrl MAD
+ctrl_mad <- as.data.frame(t(apply(ctrl_cells, 2, function(x)mad(x, constant = 1, na.rm=TRUE)))*1.4826)
 
 ##Identify features with a MAD of 0
-  DMSO_mad_zero <- DMSO_mad[, DMSO_mad[1, ]==0 & !is.na(DMSO_mad[1, ])]
+ctrl_mad_zero <- ctrl_mad[, ctrl_mad[1, ]==0 & !is.na(ctrl_mad[1, ])]
 
-  if(ncol(DMSO_mad_zero)>0){
-    DMSO_mad_zero <- DMSO_mad_zero[rep(1, nrow(test_chem)), ]
-    col_mad_zero <- colnames(DMSO_mad_zero)
-    }
+if(ncol(ctrl_mad_zero)>0){
+  ctrl_mad_zero <- ctrl_mad_zero[rep(1, nrow(test_chem)), ]
+  col_mad_zero <- colnames(ctrl_mad_zero)
+}
 
 ##Features with non-zero MAD
-  DMSO_mad <- DMSO_mad[, DMSO_mad[1,]!=0 & !is.na(DMSO_mad[1, ])]
-  DMSO_mad <- DMSO_mad[rep(1, nrow(test_chem)), ]
-  col_mad <- colnames(DMSO_mad)
+ctrl_mad <- ctrl_mad[, ctrl_mad[1,]!=0 & !is.na(ctrl_mad[1, ])]
+ctrl_mad <- ctrl_mad[rep(1, nrow(test_chem)), ]
+col_mad <- colnames(ctrl_mad)
+
+#Add sample info back to ctrl_cells
+ctrl_cells <- cbind(ctrl_info, ctrl_cells)
+
+#Normalize all cell-level data to ctrl SD, median, and MAD
+print("Calculating standard deviation, median, and median absolute deviation (MAD) of all ctrl cells across the plates")
+
+test_chem_cc <- test_chem[,c(1:3)] %>% 
+  group_by(Well, Chemical, Concentration) %>%
+  tally(name = "cell_count") %>%
+  ungroup()
 
 ##Normalize features in test samples
-print(paste0("Normalizing Plate ", x ," cell-level data to DMSO median and MAD"))
+print(paste0("Normalizing cell-level data to ctrl median and MAD"))
 
-  test_chem[, col_mad] <- (test_chem[,col_mad] - DMSO_med[,col_mad])/DMSO_mad[,col_mad]
+test_chem[, col_mad] <- (test_chem[,col_mad] - ctrl_med[,col_mad])/ctrl_mad[,col_mad]
 
-  if(ncol(DMSO_mad_zero)>0){
-    test_chem[, col_mad_zero] <- (test_chem[, col_mad_zero] - DMSO_med[, col_mad_zero])
-    }else{
-    rm(DMSO_mad_zero)
-    }
+if(ncol(ctrl_mad_zero)>0){
+  test_chem[, col_mad_zero] <- (test_chem[, col_mad_zero] - ctrl_med[, col_mad_zero])
+  }else{
+  rm(ctrl_mad_zero)
+  }
 
-  rm(DMSO, DMSO_med, DMSO_mad, DMSO_mad_zero)
+rm(ctrl_med, ctrl_mad, ctrl_mad_zero)
 
 ################################################################################
-####################Data Aggregation by Well and Treatment######################
+###########################Data Aggregation by Well#############################
 
-#Well-level data
 print("Aggregating cell-level data to well-level")
 
 #Calculate the median of all treated wells
 test_chem_well <- test_chem %>%
-  group_by(plate_no, Well, Chemical, Concentration) %>% 
+  group_by(Well, Chemical, Concentration) %>% 
   summarize_all(median, na.rm=TRUE) %>%
-  ungroup() %>%
-  dplyr::select(-c(plate_no))
+  ungroup()
 
-#Calculate the mean of all chemicals and concentrations
-print("Calculating treatment-level mean values") 
-
-#test_chem_treat <- test_chem_well %>%
-#  group_by(Well, Chemical, Concentration) %>%
-#  summarize_all(mean, na.rm=TRUE) %>%
-#  ungroup()
-
-#z-standardization: Scale well- and treatment-level data to SD of DMSO
+#z-standardization: Scale well- and treatment-level data to SD of ctrl
 print("Scaling well-level data to SD of vehicle control")
 
-DMSO_SD_w <- test_chem_well[test_chem_well$Chemical == "DMSO", ] %>%
-  select(-c(Well, Chemical, Concentration)) %>%
+ctrl_SD_w <- test_chem_well[test_chem_well$Chemical == ctrl_group, ] %>%
+  dplyr::select(-c(Well, Chemical, Concentration)) %>%
   summarise_all(mean, na.rm = TRUE)
 
-DMSO_SD_w <- DMSO_SD_w[rep(1, nrow(test_chem_well)), ] 
+ctrl_SD_w <- ctrl_SD_w[rep(1, nrow(test_chem_well)), ] 
 
-col_SD_w <- colnames(DMSO_SD_w[])
+col_SD_w <- colnames(ctrl_SD_w[])
 
-test_chem_well[,col_SD_w] <- test_chem_well[,col_SD_w]/DMSO_SD_w
+test_chem_well[,col_SD_w] <- test_chem_well[,col_SD_w]/ctrl_SD_w
 
 test_chem_well <- test_chem_well %>%
   dplyr::select(-contains("Object")) %>%
   dplyr::select(-contains("obj"))
-#  filter(Chemical != "Sorbitol")
 
-#DMSO_SD_t <- DMSO_SD[rep(1, nrow(test_chem_treat)), ]
-#col_SD_t <- colnames(DMSO_SD_t)
-#test_chem_treat[,col_SD_t] <- test_chem_treat[,col_SD_t]/DMSO_SD_t
+###Save normalized well-level values
+print(paste0("Creating lists for combined normalized values"))
 
-#Concatenate chemical name, plate number, and well ID in one column
-#test_chem_well$Chemical <- paste0(test_chem_well$Chemical, "_",test_chem_well$plate_no, "_",test_chem_well$Well)
-#test_chem_well <- dplyr::select(test_chem_well, -c(Concentration, plate_no, Well))
-
-print(paste0("Creating lists for Plate ", x))
-
-list_plate <- list(
+list_results <- list(
   test_chem,
   test_chem_cc,
   test_chem_well
-#  test_chem_treat
   )
 
-names(list_plate) <- c("test_chem", "test_chem_cc", "test_chem_well")
-
-list_plate
-
-}) %>%
-  do.call(list, .)
-
-names(list_all) <- lapply(as.numeric(plate_list), function(x) paste0("Plate_",plate_list[x]))
+names(list_results) <- c("test_chem", "test_chem_cc", "test_chem_well")
 
 toc()
 
-return(list_all)
+return(list_results)
 
 ##Well- and treatment-level data to export
-#print("Saving well-level and treatment-level data as a .RData file")
+print("Saving well-level data as a .csv file and list_results as a .RData file")
 
-#write.csv(test_chem_well, paste0(Sys.Date(), "_",basename(folder_path), "_Well-level data_1.csv"), row.names = FALSE)
-#write.csv(test_chem_treat, paste0(Sys.Date(), "_",basename(folder_path), "_Treatment-level data.csv"), row.names = FALSE)
+write.csv(test_chem_well, paste0(Sys.Date(), "_",basename(folder_path), "_Well-level data.csv"), row.names = FALSE)
 
 }
 
-list_all <- normalizeCP(folder_path)
+list_results <- normalizeCP(folder_path)
 
-save(list_all, file = paste0("Normalized_CP_output_",basename(folder_path), ".RData"))
+save(list_results, file = paste0("Normalized_CP_output_",basename(folder_path), ".RData"))

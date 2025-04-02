@@ -39,13 +39,13 @@ a <- ncol(pca$rotation)
 pca_x <- as.data.frame(pca$x)
 pca_x <- as.data.frame(cbind(chem = rownames(well_data), pca_x)) 
 
-DMSO_pc <- pca_x %>%
-  filter(grepl("DMSO", chem))
+ctrl_pc <- pca_x %>%
+  filter(grepl(ctrl_group, chem))
 
-DMSO_pc <- DMSO_pc[,-c(1)]
+ctrl_pc <- ctrl_pc[,-c(1)]
 
 #DMSO_mean <- colMeans(DMSO_pc)
-DMSO_mean <- apply(DMSO_pc, 2, mean)
+ctrl_mean <- apply(ctrl_pc, 2, mean)
 
 dat <- as.matrix(well_data) %*% pca$rotation[,1:PC_95]
 
@@ -60,7 +60,7 @@ solved_cov <- ginv(Cov)
 
 #Mahalanobis distance determination
 
-mahal_dist <- mahalanobis(dat, DMSO_mean, solved_cov, inverted = T) 
+mahal_dist <- mahalanobis(dat, ctrl_mean, solved_cov, inverted = T) 
 
 mahal_dist <- as.data.frame(mahal_dist)
 
@@ -83,34 +83,29 @@ mahal_dist <- mahal_dist %>%
   group_by(chem) %>%
   mutate(conc_count = length(unique(concentration)))
 
-mahal_dmso <- mahal_dist %>%
-  filter(chem == "DMSO")
+mahal_ctrl <- mahal_dist %>%
+  filter(chem == ctrl_group)
 
 mahal_dist <- mahal_dist %>%
   filter(conc_count > 3) 
 
-mahal_dist <- rbind(mahal_dist, mahal_dmso)
+mahal_dist <- rbind(mahal_dist, mahal_ctrl)
 
-mahal_dist$plate_no <- plates[n]
-
-exp_name <- paste0("Nyffeler_Plate_",n)
 mahal_dist$exp <- exp_name
-
-mahal_dist_all[[length(mahal_dist_all) + 1]] <- mahal_dist
 
 ####################
 ##Plot Mahalanobis distances
 
 chem_list <- unique(mahal_dist$chem)
 
-mahal_dist[mahal_dist$chem == "DMSO",]$concentration <- 1
+mahal_dist[mahal_dist$chem == ctrl_group,]$concentration <- 1
 
-ggsave(paste0(results_dir, paste0(exp_name), "_", paste0(plates[n]), "_Global Mahalanobis.jpeg"),
+ggsave(paste0(results_dir, paste0(exp_name), "_Global Mahalanobis.jpeg"),
        
      ggplot(mahal_dist, aes(x=concentration, y=mahal_dist, colour=chem)) + 
       geom_point() + 
-      geom_hline(yintercept = median(mahal_dmso$mahal_dist), linetype = "dashed", color = "maroon4") +
-      geom_ribbon(aes(ymin = median(mahal_dmso$mahal_dist) - mad(mahal_dmso$mahal_dist), ymax = median(mahal_dmso$mahal_dist) + mad(mahal_dmso$mahal_dist)), fill = "thistle3", colour = NA, alpha = 0.5) +
+      geom_hline(yintercept = median(mahal_ctrl$mahal_dist), linetype = "dashed", color = "maroon4") +
+      geom_ribbon(aes(ymin = median(mahal_ctrl$mahal_dist) - mad(mahal_ctrl$mahal_dist), ymax = median(mahal_ctrl$mahal_dist) + mad(mahal_ctrl$mahal_dist)), fill = "thistle3", colour = NA, alpha = 0.5) +
       scale_y_continuous() +
       scale_x_log10() +
       #scale_color_manual(values = viridis(12)) +
@@ -125,20 +120,20 @@ ggsave(paste0(results_dir, paste0(exp_name), "_", paste0(plates[n]), "_Global Ma
       facet_wrap(vars(chem), scales = "free") +
       theme( strip.text.x = element_text(size = 12, face = "bold")),
       
-      width = 35, height = 20, units = "cm") 
+      width = 35, height = 50, units = "cm") 
 
 #####Tcplfit2 to derive benchmark concentrations#####
 
 test_chem_res <- mahal_dist %>%
-  filter(chem !="DMSO")
+  filter(chem !=ctrl_group)
 
 chem_list <- unique(test_chem_res$chem)
 
 DMSO_dist <- mahal_dist %>%
-  filter(chem == "DMSO")
+  filter(chem == ctrl_group)
 
 vehicle_ctrl <- mahal_dist %>%
-  filter(chem == "DMSO") %>%
+  filter(chem == ctrl_group) %>%
   summarise(Median = median(mahal_dist, na.rm=T), 
             nMad = mad(mahal_dist, constant=1.4826, na.rm=T))
 
@@ -165,7 +160,7 @@ tcpl_results <- lapply(chem_list, function(x){
   tcpl_chem <- conc_res_modeling(chem_data, vehicle_ctrl)
   
   if(tcpl_chem$hitcall > 0.9){
-    jpeg(file = paste0(results_dir, plates[n], "_", x, "_tcplfit.jpg"))
+    jpeg(file = paste0(results_dir, "_", x, "_tcplfit.jpg"))
     concRespPlot(tcpl_chem, ymin=min(chem_data$mahal_dist)-5, ymax=max(chem_data$mahal_dist)+10, draw.error.arrows = FALSE)
     dev.off()
   }
@@ -174,8 +169,7 @@ tcpl_results <- lapply(chem_list, function(x){
 }) %>%
       do.call(rbind, .)
 
-
-ggsave(paste0(results_dir, paste0(plates[n]), "_Global_BMC.jpeg"), 
+ggsave(paste0(results_dir, "_Global_BMC.jpeg"), 
        
        ggplot(tcpl_results, aes(x=bmd, y=name, colour=name)) +
          geom_point(size=2) +
@@ -188,12 +182,9 @@ ggsave(paste0(results_dir, paste0(plates[n]), "_Global_BMC.jpeg"),
        width = 40, height = 20, units = "cm"
 )
 
-tcpl_results$plate_no <- plates[n]
 tcpl_results$exp <- exp_name
 
-tcpl_results_all[[length(tcpl_results_all) + 1]] <- tcpl_results
-
 #Save tcpl results
-write_csv(tcpl_results, file = paste0(results_dir, plates[n], "_Global fitting Mahalanobis - tcplResult.csv"))
+write_csv(tcpl_results, file = paste0(results_dir, "_Global fitting Mahalanobis - tcplResult.csv"))
 
 

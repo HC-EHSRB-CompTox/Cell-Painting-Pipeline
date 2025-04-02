@@ -5,44 +5,41 @@ library(cowplot)
 
 #Categorize features
 #Formats feature names from Columbus to region_channel_module_category number 
+test_chem_well <- as.data.frame(list_results["test_chem_well"])
 
-plates <- names(list_all)
+test_chem_well$plate_no <- str_extract(test_chem_well$test_chem_well.Well, "(?<=_)(\\d+)")
 
-test_chem_well <- lapply(plates, function(x){
-  well_dat <- as.data.frame(list_all[[x]]["test_chem_well"]) %>%
-    mutate(plate_no = gsub("_", "",x)) %>%
-    relocate(plate_no, .after = "test_chem_well.Well")
-  
-  well_dat}) %>%
-  do.call(rbind,.)
+test_chem_well <- test_chem_well %>%
+  relocate(plate_no, .after = "test_chem_well.Well")
 
 #Plot cell count for each chemical
-
-cell_count <- lapply(plates, function(x){
-  cells <- as.data.frame(list_all[[x]]["test_chem_cc"])
-  cells}) %>%
-  do.call(rbind,.)
+cell_count <- as.data.frame(list_results["test_chem_cc"])
 
 colnames(cell_count) <- gsub("test_chem_cc.", "", colnames(cell_count))
 
-cell_count[cell_count$Chemical == "DMSO",]$Concentration <- 1
+cell_count$plate_no <- str_extract(cell_count$Well, "(?<=_)(\\d+)")
+
+cell_count[cell_count$Chemical == ctrl_group,]$Concentration <- 1
 
 cell_count_avg <- cell_count %>%
   group_by(Chemical, Concentration) %>%
   summarise(Average_cc = mean(cell_count),
             SD = sd(cell_count))
 
-cell_count_avg$relative_cc <- cell_count_avg$Average_cc/cell_count_avg[cell_count_avg$Chemical == "DMSO", ]$Average_cc
+cell_count_avg$relative_cc <- cell_count_avg$Average_cc/cell_count_avg[cell_count_avg$Chemical == ctrl_group, ]$Average_cc
+
+cell_count_avg$SD_rel_cc <- cell_count_avg$relative_cc*sqrt((cell_count_avg$SD/cell_count_avg$Average_cc)^2 + (cell_count_avg[cell_count_avg$Chemical == ctrl_group, ]$SD/cell_count_avg[cell_count_avg$Chemical == ctrl_group, ]$Average_cc)^2)
 
 cytotoxic_conc <- cell_count_avg %>%
   filter(relative_cc < 0.5)
 
-relative_cell_count <- ggplot(cell_count_avg[cell_count_avg$Chemical != "DMSO",], aes(x = Concentration, y = relative_cc, colour = Chemical)) +
+relative_cell_count <- ggplot(cell_count_avg[cell_count_avg$Chemical != ctrl_group,], aes(x = Concentration, y = relative_cc, colour = Chemical)) +
     geom_point() +
+    geom_errorbar(aes(ymin = relative_cc - SD_rel_cc, ymax = relative_cc + SD_rel_cc), width = 0.05) +
     theme_bw() + 
     theme(legend.position="none") +
     scale_x_log10() +
-    ylim(0, 1.2) +
+    ylim(0, 1.6) +
     geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
     facet_wrap(vars(Chemical), scales = "free")
 
@@ -52,18 +49,19 @@ plate_plot <- lapply(plate_no, function(x){
   
   plate_data <- cell_count[cell_count$plate_no == x, ]
   
-  # Create an ordered factor for Chemical with "DMSO" first
+  # Create an ordered factor for Chemical with ctrl_group first
   plate_data$Chemical <- factor(plate_data$Chemical, 
-                                levels = c("DMSO", setdiff(unique(plate_data$Chemical), "DMSO")), 
+                                levels = c(ctrl_group, setdiff(unique(plate_data$Chemical), ctrl_group)), 
                                 ordered = TRUE)
   
-  y_min <- min(plate_data[plate_data$Chemical == "DMSO",]$cell_count)
-  y_max <- max(plate_data[plate_data$Chemical == "DMSO",]$cell_count)
+  y_min <- min(plate_data[plate_data$Chemical == ctrl_group,]$cell_count)
+  y_max <- max(plate_data[plate_data$Chemical == ctrl_group,]$cell_count)
   
   plate_plot <- ggplot(plate_data, aes(x=Concentration, y=cell_count, colour=Chemical)) + 
     geom_point() + 
+   # geom_errorbar(aes(ymin = relative_cc - SD_rel_cc, ymax = relative_cc + SD_rel_cc), width = 0.05) +
     geom_ribbon(aes(ymin = y_min, ymax = y_max), fill = "grey70", alpha = 0.5) +        
-    geom_hline(yintercept = median(plate_data[plate_data$Chemical == "DMSO",]$cell_count), linetype = "dashed", color = "red") +
+    geom_hline(yintercept = median(plate_data[plate_data$Chemical == ctrl_group,]$cell_count), linetype = "dashed", color = "red") +
     scale_y_continuous() +
     ylim(min(plate_data$cell_count)-50, max(plate_data$cell_count)+50) +
     scale_x_log10() +
@@ -82,7 +80,7 @@ combined_plot <- do.call(plot_grid, c(plate_plot, nrow = nrow))
 
 ggsave("Cell count by chemical_all plates.jpeg",
        combined_plot,
-       width = 20, height = 40, units = "cm"
+       width = 20, height = 60, units = "cm"
   ) 
 
 ggsave("Relative cell count.jpeg",
@@ -90,17 +88,17 @@ ggsave("Relative cell count.jpeg",
        width = 50, height = 30, units = "cm"
 ) 
 
-DMSO_plot <- ggplot(cell_count[cell_count$Chemical == "DMSO",], aes(x= as.character(plate_no), y=cell_count, colour=plate_no)) + 
+ctrl_plot <- ggplot(cell_count[cell_count$Chemical == ctrl_group,], aes(x= as.character(plate_no), y=cell_count, colour=plate_no)) + 
   geom_point() + 
   scale_y_continuous() +
   theme(legend.position="none") +
   xlab("Plate Number") +
   ylab("Cell count") +
   geom_text(aes(label = Well), size = 2, vjust = -1, hjust = 0.5) +
-  ggtitle("Vehicle Control (DMSO)")
+  ggtitle(paste0("Vehicle Control (",ctrl_group, ")"))
 
-ggsave("Cell count_DMSO_all plates.jpeg",
-       DMSO_plot,
+ggsave("Cell count_ctrl_all plates.jpeg",
+       ctrl_plot,
        width = 25, height = 25, units = "cm"
   ) 
 
@@ -168,7 +166,7 @@ colnames(test_chem_well) <- t(fts) # run code up to here for BMDExpress formatti
 
 #Concatenate chemical name, plate number, and well ID in one column
 
-test_chem_well$Chemical <- paste0(test_chem_well$Chemical, "_",test_chem_well$Concentration, "_", test_chem_well$Well, "_", test_chem_well$Plate)
+test_chem_well$Chemical <- paste0(test_chem_well$Chemical, "_",test_chem_well$Concentration, "_", test_chem_well$Well)
 test_chem_well <- test_chem_well[, !names(test_chem_well) %in% c("Plate", "Well","Concentration")]
 
 ##Sets sample info as row names
