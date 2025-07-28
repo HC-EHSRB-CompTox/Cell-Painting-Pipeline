@@ -7,6 +7,7 @@ library(tcplfit2)
 library(patchwork)
 library(cowplot)
 library(MASS)
+library(gridExtra)
 
 #test_chem_well.RData as input
 
@@ -74,8 +75,8 @@ sample <- tibble(sample) %>%
 
 mahal_dist <- cbind(sample, mahal_dist = mahal_dist$mahal_dist)
 
-mahal_dist <- mahal_dist %>%
-  dplyr::select(-c("Plate"))
+#mahal_dist <- mahal_dist %>%
+#  dplyr::select(-c("Plate"))
 
 mahal_dist$concentration <- as.numeric(mahal_dist$concentration)
 
@@ -97,12 +98,15 @@ mahal_dist$exp <- exp_name
 ##Plot Mahalanobis distances
 
 chem_list <- unique(mahal_dist$chem)
+plate <- unique(mahal_dist$Plate)
 
 mahal_dist[mahal_dist$chem == ctrl_group,]$concentration <- 1
 
-ggsave(paste0(results_dir, paste0(exp_name), "_Global Mahalanobis.jpeg"),
+lapply(plate, function(plate){
+  
+  ggsave(paste0(results_dir, paste0(exp_name), "_", paste0("Plate",plate), "_Global Mahalanobis.jpeg"),
        
-     ggplot(mahal_dist, aes(x=concentration, y=mahal_dist, colour=chem)) + 
+     ggplot(mahal_dist[mahal_dist$Plate == plate,], aes(x=concentration, y=mahal_dist, colour=chem)) + 
       geom_point() + 
       geom_hline(yintercept = median(mahal_ctrl$mahal_dist), linetype = "dashed", color = "maroon4") +
       geom_ribbon(aes(ymin = median(mahal_ctrl$mahal_dist) - mad(mahal_ctrl$mahal_dist), ymax = median(mahal_ctrl$mahal_dist) + mad(mahal_ctrl$mahal_dist)), fill = "thistle3", colour = NA, alpha = 0.5) +
@@ -120,7 +124,31 @@ ggsave(paste0(results_dir, paste0(exp_name), "_Global Mahalanobis.jpeg"),
       facet_wrap(vars(chem), scales = "free") +
       theme( strip.text.x = element_text(size = 12, face = "bold")),
       
-      width = 35, height = 50, units = "cm") 
+      width = 50, height = 35, units = "cm") 
+  
+  })
+
+ggsave(paste0(results_dir, paste0(exp_name), "_Global Mahalanobis.jpeg"),
+       
+       ggplot(mahal_dist, aes(x=concentration, y=mahal_dist, colour=chem)) + 
+         geom_point() + 
+         geom_hline(yintercept = median(mahal_ctrl$mahal_dist), linetype = "dashed", color = "maroon4") +
+         geom_ribbon(aes(ymin = median(mahal_ctrl$mahal_dist) - mad(mahal_ctrl$mahal_dist), ymax = median(mahal_ctrl$mahal_dist) + mad(mahal_ctrl$mahal_dist)), fill = "thistle3", colour = NA, alpha = 0.5) +
+         scale_y_continuous() +
+         scale_x_log10() +
+         #scale_color_manual(values = viridis(12)) +
+         xlab("Concentration (\u03BCM)") +
+         ylab("Mahalanobis Distance") +
+         theme_classic() +
+         theme(legend.position="none",
+               axis.title.x = element_text(size = 17, margin = margin(t=15)),
+               axis.title.y = element_text(size = 17, margin = margin(r=15)),
+               axis.text.x = element_text(size = 12),
+               axis.text.y = element_text(size = 12)) +
+         facet_wrap(vars(chem), scales = "free") +
+         theme( strip.text.x = element_text(size = 12, face = "bold")),
+       
+       width = 50, height = 35, units = "cm") 
 
 #####Tcplfit2 to derive benchmark concentrations#####
 
@@ -187,4 +215,31 @@ tcpl_results$exp <- exp_name
 #Save tcpl results
 write_csv(tcpl_results, file = paste0(results_dir, "_Global fitting Mahalanobis - tcplResult.csv"))
 
+########################################################################################
+mahal_dist <- mahal_dist %>%
+  separate(Well, into = c("Row", "Column"), sep = "(?<=\\D)(?=\\d)")
 
+mahal_dist$Column <- factor(mahal_dist$Column, levels = as.character(1:12))
+
+mahal_dist$Row <- factor(mahal_dist$Row, levels = LETTERS[8:1])
+
+mahaldist_hm <- ggplot(mahal_dist, aes(x = Column, y = Row, fill = mahal_dist)) +
+  geom_tile() +
+  scale_fill_viridis_c() +
+  theme_minimal() +
+  theme(title = element_text(size = 13),
+        axis.title.x = element_text(size = 16, margin = margin(t=15)),
+        axis.title.y = element_text(size = 16, margin = margin(r=15)),
+        axis.text.x = element_text(size = 14, colour = "black"),
+        axis.text.y = element_text(size = 14, colour = "black", margin=margin(r=5)),
+        legend.title = element_text(size = 15),
+        legend.text = element_text(size = 13, colour = "black")) +
+  labs(title = "Mahalanobis distance of each well from the plate mean", x = "Columns", y = "Rows", fill = "Mahalanobis\nDistance") +
+  facet_grid(rows = vars(Plate))
+
+mahaldist_hm
+
+plots <- grid.arrange(cellcount_hm, mahaldist_hm, ncol = 2)
+
+ggsave(plots, filename = "Cell count and Mahalnobis distance heatmaps.jpeg",
+       height = 10, width =20)

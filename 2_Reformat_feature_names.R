@@ -30,8 +30,9 @@ cell_count_avg$relative_cc <- cell_count_avg$Average_cc/cell_count_avg[cell_coun
 
 cell_count_avg$SD_rel_cc <- cell_count_avg$relative_cc*sqrt((cell_count_avg$SD/cell_count_avg$Average_cc)^2 + (cell_count_avg[cell_count_avg$Chemical == ctrl_group, ]$SD/cell_count_avg[cell_count_avg$Chemical == ctrl_group, ]$Average_cc)^2)
 
+#cut-off for reduction in cell count
 cytotoxic_conc <- cell_count_avg %>%
-  filter(relative_cc < 0.5)
+  filter(relative_cc < 0.2)
 
 relative_cell_count <- ggplot(cell_count_avg[cell_count_avg$Chemical != ctrl_group,], aes(x = Concentration, y = relative_cc, colour = Chemical)) +
     geom_point() +

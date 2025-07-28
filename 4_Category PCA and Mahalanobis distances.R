@@ -130,7 +130,7 @@ lapply(chem_list, function(x){
     facet_wrap(vars(feat), scales = "free") 
   
   
-  ggsave(paste0(paste0(x, collapse = "_"), "_Categorical mahalnobis.jpeg"), 
+  ggsave(paste0(results_dir, paste0(x, collapse = "_"), "_Categorical mahalnobis.jpeg"), 
          plot,
          width = 45, height = 45, units = "cm")
   })
@@ -230,12 +230,12 @@ BMC_plot <- ggplot(tcpl_results_cat, aes(x=bmd, y=feat, colour=feat)) +
   facet_wrap(vars(chem))
   
 
-ggsave(paste0(results_dir, "_Categorical BMC.jpeg"),
+ggsave(paste0(results_dir,"_", ctrl_group,"_Categorical BMC.jpeg"),
        BMC_plot,
        width = 25, height = 35, units = "cm")
 
 #Save tcpl results
-write_csv(tcpl_results_cat, file = paste0(results_dir,"_Category Mahalanobis - tcplResult.csv"))
+write_csv(tcpl_results_cat, file = paste0(results_dir,exp_name,"_", ctrl_group,"_Category Mahalanobis - tcplResult.csv"))
 
 
 
