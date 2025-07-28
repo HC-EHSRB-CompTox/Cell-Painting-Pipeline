@@ -239,7 +239,7 @@ mahaldist_hm <- ggplot(mahal_dist, aes(x = Column, y = Row, fill = mahal_dist)) 
 
 mahaldist_hm
 
-plots <- grid.arrange(cellcount_hm, mahaldist_hm, ncol = 2)
+#plots <- grid.arrange(cellcount_hm, mahaldist_hm, ncol = 2)
 
-ggsave(plots, filename = "Cell count and Mahalnobis distance heatmaps.jpeg",
-       height = 10, width =20)
+#ggsave(plots, filename = "Cell count and Mahalnobis distance heatmaps.jpeg",
+#       height = 10, width =20)

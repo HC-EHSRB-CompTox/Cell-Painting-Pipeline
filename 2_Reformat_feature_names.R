@@ -12,6 +12,7 @@ test_chem_well$plate_no <- str_extract(test_chem_well$test_chem_well.Well, "(?<=
 test_chem_well <- test_chem_well %>%
   relocate(plate_no, .after = "test_chem_well.Well")
 
+###############################################################################
 #Plot cell count for each chemical
 cell_count <- as.data.frame(list_results["test_chem_cc"])
 
@@ -103,7 +104,34 @@ ggsave("Cell count_ctrl_all plates.jpeg",
        width = 25, height = 25, units = "cm"
   ) 
 
+## Cell density heatmap
 
+plate_cell_count <- data.frame(list_results$test_chem_cc)
+
+plate_cell_count <- plate_cell_count %>%
+  mutate(Well = str_trim(Well)) %>%
+  separate(Well, into = c("Row", "Column"), sep = "(?<=^.)") %>%
+  separate(Column, into = c("Column", "Plate"), sep = "_", fill = "right", extra = "merge")
+
+plate_cell_count$Column <- factor(plate_cell_count$Column, levels = as.character(1:12))
+
+plate_cell_count$Row <- factor(plate_cell_count$Row, levels = LETTERS[8:1])
+
+cellcount_hm <- ggplot(plate_cell_count, aes(x = Column, y = Row, fill = cell_count)) +
+  geom_tile() +
+  scale_fill_viridis_c() +
+  theme_minimal() +
+  theme(title = element_text(size = 13),
+        axis.title.x = element_text(size = 16, margin = margin(t=15)),
+        axis.title.y = element_text(size = 16, margin = margin(r=15)),
+        axis.text.x = element_text(size = 14, colour = "black"),
+        axis.text.y = element_text(size = 14, colour = "black", margin=margin(r=5)),
+        legend.title = element_text(size = 15),
+        legend.text = element_text(size = 13, colour = "black")) +
+  labs(title = "Cell count across 9 fields of view (96-well plate)", x = "Columns", y = "Rows", fill = "Cell Count") +
+  facet_grid(rows=vars(Plate))
+
+###########################################################################
 #Exclude wells with >50% reduction in relative cell count
 test_chem_well <- test_chem_well %>%
   filter(!paste(test_chem_well.Chemical, test_chem_well.Concentration) %in% paste(cytotoxic_conc$Chemical, cytotoxic_conc$Concentration))

@@ -4,9 +4,9 @@
 #Create a new folder to store processed data files
 setwd("C:/Users/Admin/Documents/")
 
-folder_path <- "C:/Users/Admin/Documents/Definitive_data_analysis_2025/Ref_chem_raw_data/Ref_chem_definitive_rep1"
+folder_path <- "C:/Users/Admin/Documents/Columbus_output_platemaps/Ref_chem_raw_data/Ref_chem_definitive_rep1"
 
-new_dir <- paste0(Sys.Date(),"_", basename(folder_path), "_Cell painting results")
+new_dir <- paste0("C:/Users/Admin/Documents/Analysis_output/", Sys.Date(),"_", basename(folder_path), "_Cell painting results")
 dir.create(new_dir)
 setwd(new_dir)
 
@@ -18,11 +18,16 @@ ctrl_group <- "DMSO"
 
 #########################################################################
 
-#### 1. Feature Normalization
+#### 1. Feature Normalization (Joing 4 plates and normalize together)
 source("C:/Users/Admin/Documents/CompTox-Cell-Painting-Pipeline/1_HC_feature_normalization.R")
 
+test_chem_well <- as.data.frame(list_results["test_chem_well"])
+colnames(test_chem_well) <- str_remove(colnames(test_chem_well), "test_chem_well.")
+colnames(test_chem_well)[1] <- "WellID_PlateNo"
+write.csv(test_chem_well, paste0("HepaRG_Exp1_well level_", ctrl_group ,".csv"), row.names = F)
+
 #### 2. Reformatting of feature names and grouping by category
-source("C:/Users/Admin/Documents/CompTox-Cell-Painting-Pipeline/2_Reformat_feature_names.R")  
+source("C:/Users/Admin/Documents/CompTox-Cell-Painting-Pipeline/2_Reformat_feature_names.R")
 
 #Remove list_results to free up memory
 rm(list_results)
@@ -44,5 +49,4 @@ dir.create(results_folder)
 results_dir <- paste0(getwd(),"/", results_folder, "/")
 
 source("C:/Users/Admin/Documents/CompTox-Cell-Painting-Pipeline/4_Category PCA and Mahalanobis distances.R")
-
 
