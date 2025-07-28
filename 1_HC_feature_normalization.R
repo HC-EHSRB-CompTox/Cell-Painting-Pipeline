@@ -45,21 +45,49 @@ if(any(is.na(df_pm$plate_no))){
 
 df_pm$plate_no <- as.character(df_pm$plate_no)
 
+###Multiple vehicle controls
+ctrl_group <- unique(df_pm$Control)
+
 #Add a column for plate number and combine results for multiple plates
 ##Get plate number from folder name
 compile_csv <- function(folder_path, plate_no) {
-    rbindlist(lapply(list.files(folder_path, full.names = TRUE, pattern = "\\.csv$"), fread), use.names = TRUE) %>%
-    mutate(plate_no = str_extract(plate_no, "(?i)(?<=plate[ _])\\d+")) %>%
+    rbindlist(lapply(list.files(folder_path, full.names = TRUE, pattern = "[A-H](1[0-2]|[1-9])", recursive = TRUE), fread), use.names = TRUE) %>%
+    mutate(plate_no = str_extract(plate_no,"(?<=-)(\\d+)(?=\\[)|(?i)(?<=plate[ _])\\d+")) %>%  # "(?i)(?<=plate[ _])\\d+")) %>%
     relocate(plate_no, .after = "WellName")
   }
 
-sub_folders <- list.dirs(folder_path, recursive = FALSE)
+##########################
+#Randomly sample 1000 cells
+compile_csv <- function(folder_path, plate_no, sample_n = 1000) {
+  combined_df <- rbindlist(
+    lapply(
+      list.files(folder_path, full.names = TRUE, pattern = "[A-H](1[0-2]|[1-9])", recursive = TRUE),
+      function(file) {
+        df <- fread(file)
+        set.seed(42)  # For reproducibility
+        if (nrow(df) > 1000) {
+          df <- df[sample(.N, 1000)]  # .N is data.table's nrow
+        }
+        return(df)
+      }
+    ),
+    use.names = TRUE
+  ) %>%
+    mutate(plate_no = str_extract(plate_no, "(?<=-)(\\d+)(?=\\[)|(?i)(?<=plate[ _])\\d+")) %>%
+    relocate(plate_no, .after = "WellName")
+  
+  return(combined_df)
+}
+################################
 
-##Compile multiple plates
+plate_folders <- list.dirs(folder_path, recursive = FALSE, full.names = TRUE)
+
+##Compile multiple plates##
 print("Compiling feature files and modifying column names")
 
 start_time <- Sys.time()
-df_f <- rbindlist(lapply(sub_folders, function(sub_folder) compile_csv(sub_folder, basename(sub_folder))))
+df_f <- rbindlist(lapply(plate_folders, function(plate_folders) compile_csv(plate_folders, basename(plate_folders))))
+df_f$plate_no <- str_extract(df_f$plate_no,"\\d+")
 end_time <- Sys.time()
 print(end_time - start_time)
 
@@ -114,7 +142,7 @@ df_f <- df_f %>%
 test_chem <- df_f
 
 ##calculate ctrl(solvent) median and median absolute deviation (MAD) using all control cells across the plates
-ctrl_cells <- subset(df_f,  Chemical == ctrl_group)
+ctrl_cells <- subset(df_f,  Chemical %in% ctrl_group)
 
 #Average cell count (cc) per well
 ctrl_avg_cc <- ctrl_cells[, c(1,3)] %>%
@@ -225,4 +253,33 @@ write.csv(test_chem_well, paste0(Sys.Date(), "_",basename(folder_path), "_Well-l
 
 list_results <- normalizeCP(folder_path)
 
-save(list_results, file = paste0("Normalized_CP_output_",basename(folder_path), ".RData"))
+save(list_results, file = paste0("Normalized_CP_output_",basename(folder_path), ".RData")) 
+
+#################################################################################################
+
+plate_cell_count <- data.frame(list_results$test_chem_cc)
+
+plate_cell_count <- plate_cell_count %>%
+  mutate(Well = str_trim(Well)) %>%
+  separate(Well, into = c("Row", "Column"), sep = "(?<=^.)") %>%
+  separate(Column, into = c("Column", "Plate"), sep = "_", fill = "right", extra = "merge")
+
+plate_cell_count$Column <- factor(plate_cell_count$Column, levels = as.character(1:12))
+
+plate_cell_count$Row <- factor(plate_cell_count$Row, levels = LETTERS[8:1])
+
+cellcount_hm <- ggplot(plate_cell_count, aes(x = Column, y = Row, fill = cell_count)) +
+  geom_tile() +
+  scale_fill_viridis_c() +
+  theme_minimal() +
+  theme(title = element_text(size = 13),
+        axis.title.x = element_text(size = 16, margin = margin(t=15)),
+        axis.title.y = element_text(size = 16, margin = margin(r=15)),
+        axis.text.x = element_text(size = 14, colour = "black"),
+        axis.text.y = element_text(size = 14, colour = "black", margin=margin(r=5)),
+        legend.title = element_text(size = 15),
+        legend.text = element_text(size = 13, colour = "black")) +
+  labs(title = "Cell count across 9 fields of view (96-well plate)", x = "Columns", y = "Rows", fill = "Cell Count") +
+  facet_grid(rows=vars(Plate))
+
+
