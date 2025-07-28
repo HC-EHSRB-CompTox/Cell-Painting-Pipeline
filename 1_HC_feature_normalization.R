@@ -56,30 +56,6 @@ compile_csv <- function(folder_path, plate_no) {
     relocate(plate_no, .after = "WellName")
   }
 
-##########################
-#Randomly sample 1000 cells
-compile_csv <- function(folder_path, plate_no, sample_n = 1000) {
-  combined_df <- rbindlist(
-    lapply(
-      list.files(folder_path, full.names = TRUE, pattern = "[A-H](1[0-2]|[1-9])", recursive = TRUE),
-      function(file) {
-        df <- fread(file)
-        set.seed(42)  # For reproducibility
-        if (nrow(df) > 1000) {
-          df <- df[sample(.N, 1000)]  # .N is data.table's nrow
-        }
-        return(df)
-      }
-    ),
-    use.names = TRUE
-  ) %>%
-    mutate(plate_no = str_extract(plate_no, "(?<=-)(\\d+)(?=\\[)|(?i)(?<=plate[ _])\\d+")) %>%
-    relocate(plate_no, .after = "WellName")
-  
-  return(combined_df)
-}
-################################
-
 plate_folders <- list.dirs(folder_path, recursive = FALSE, full.names = TRUE)
 
 ##Compile multiple plates##
