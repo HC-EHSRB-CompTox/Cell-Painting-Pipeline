@@ -101,6 +101,10 @@ df_f <- df_f %>%
 #Remove columns with all NA
 df_f <- df_f[, colSums(is.na(df_f)) < nrow(df_f)]
 
+############################## .rds files provided to Andrew
+saveRDS(df_f, "Definitive study_cell_lev_rep4.rds")
+##################################################################
+
 #Join well ID and plate number
 df_f$Well <- paste(df_f$Well, df_f$plate_no, sep = "_")
 
