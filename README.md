@@ -7,3 +7,20 @@ Cell painting visualizes morphological changes induced by toxicity using fluores
 
 ## Description of the pipeline
 The pipeline consists of 4 modules: `1_HC_feature_normalization`, `2_Reformat_feature_names`, `3_Global PCA and Mahalnobis distances`, and `4_Category PCA and Mahalanobis distances`.
+
+### Input Data Format and File Organization
+The outputs from the Columbus image analysis software  are used as inputs in the `1_HC_feature_normalization` module. The main folder contains Columbus outputs for one experiment in individual sub-folders for each plate and the plate maps (one .xlsx file per plate) are saved directly in the main folder. Each sub-folder for plates contains 96 .csv files (one .csv file per well).<br/>
+Each Columbus output file contains measurements for 1384 image features for all cells in the well that passed the initial filtering criteria: nuclear area (>20, <900) and cell area (>100, <6700).
+
+### Module 1: Feature Normalization
+`1_HC_feature_normalization`
+
+### Module 2: Reformatting Feature Names
+`2_Reformat_feature_names`
+
+### Module 3: Global Principal Component Analysis (PCA) and Mahalanobis Distance Calculation
+`3_Global PCA and Mahalnobis distances`
+
+### Module 4: Categorical PCA and Mahalanobis Distance Calculation
+`4_Category PCA and Mahalanobis distances`
+
