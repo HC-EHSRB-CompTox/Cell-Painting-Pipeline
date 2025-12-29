@@ -14,6 +14,7 @@ Each Columbus output file contains measurements for 1384 image features for all 
 
 ### Module 1: Feature Normalization
 `1_HC_feature_normalization`
+![module 1](https://github.com/user-attachments/assets/68b8cc6c-fb6f-422f-9f9e-6c17d10ddeb6)
 
 ### Module 2: Reformatting Feature Names
 `2_Reformat_feature_names`
