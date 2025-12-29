@@ -25,6 +25,10 @@ tcplfit2<br/>
 tidyverse<br/>
 viridis
 
+```r
+install.packages(c("caret", "cowplot", "factoextra", "ggrepel", "gridExtra", "MASS", "patchwork", "purrr", "readxl", "RColorBrewer", "stats", "stringr", "tcplfit2", "tidyverse", "viridis"))
+```
+
 ### Input Data Format and File Organization
 The outputs from the Columbus image analysis software  are used as inputs in the `1_HC_feature_normalization` module. The main folder contains Columbus outputs for one experiment in individual sub-folders for each plate and the plate maps (one .xlsx file per plate) are saved directly in the main folder. Each sub-folder for plates contains 96 .csv files (one .csv file per well).<br/>
 Each Columbus output file contains measurements for 1384 image features for all cells in the well that passed the initial filtering criteria: nuclear area (>20, <900) and cell area (>100, <6700).
