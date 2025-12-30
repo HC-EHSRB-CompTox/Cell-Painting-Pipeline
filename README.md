@@ -33,12 +33,8 @@ install.packages(c("caret", "cowplot", "factoextra", "ggrepel", "gridExtra", "MA
 The outputs from the Columbus image analysis software  are used as inputs in the `1_HC_feature_normalization` module. The main folder contains Columbus outputs for one experiment in individual sub-folders for each plate and the plate maps (one .xlsx file per plate) are saved directly in the main folder. Each sub-folder for plates contains 96 .csv files (one .csv file per well).<br/>
 Each Columbus output file contains measurements for 1384 image features for all cells in the well that passed the initial filtering criteria: nuclear area (>20, <900) and cell area (>100, <6700).
 
-### Module 1: Feature Normalization
-`1_HC_feature_normalization`
-![module 1](https://github.com/user-attachments/assets/68b8cc6c-fb6f-422f-9f9e-6c17d10ddeb6)
+![module 1 and 2](https://github.com/user-attachments/assets/bdc42adb-04ee-42b0-8bb0-a6ed5dfbd641)
 
-### Module 2: Reformatting Feature Names
-`2_Reformat_feature_names`
 
 ### Module 3: Global Principal Component Analysis (PCA) and Mahalanobis Distance Calculation
 `3_Global PCA and Mahalnobis distances`
