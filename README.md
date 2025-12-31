@@ -33,12 +33,27 @@ install.packages(c("caret", "cowplot", "factoextra", "ggrepel", "gridExtra", "MA
 The outputs from the Columbus image analysis software  are used as inputs in the `1_HC_feature_normalization` module. The main folder contains Columbus outputs for one experiment in individual sub-folders for each plate and the plate maps (one .xlsx file per plate) are saved directly in the main folder. Each sub-folder for plates contains 96 .csv files (one .csv file per well).<br/>
 Each Columbus output file contains measurements for 1384 image features for all cells in the well that passed the initial filtering criteria: nuclear area (>20, <900) and cell area (>100, <6700).
 
-![module 1 and 2](https://github.com/user-attachments/assets/bdc42adb-04ee-42b0-8bb0-a6ed5dfbd641)
+### Pipeline Modules
 
+![module 1 and 2](https://github.com/user-attachments/assets/b392131e-f9fb-4c08-95f8-d918ba0a7605)
+<br/>
+<br/>
 
-### Module 3: Global Principal Component Analysis (PCA) and Mahalanobis Distance Calculation
-`3_Global PCA and Mahalnobis distances`
+![module 3 and 4](https://github.com/user-attachments/assets/492a3a4a-2b43-4a07-9316-0b44f0dfe68b)
+<br/>
+```r
+row <- list(conc = as.numeric(test_chem$concentration),
+              resp = test_chem$mahal_dist,
+              bmed = vehicle_ctrl$Median,
+              cutoff = vehicle_ctrl$nMad, #MAD of the median Mahalanobis distance of the solvent control wells
+              onesd = vehicle_ctrl$nMad,
+              name = paste0(test_chem$chem[1]),
+              assay = "Mahalanobis distance (cutoff = 1)")
+  
+  concRespCore(row, conthits = TRUE, aicc = FALSE, force.fit = FALSE,  bidirectional = TRUE,
+               fitmodels=c("cnst", "hill", "poly1", "poly2", "pow", "exp2", "exp3","exp4", "exp5"))
+```
+<br/>
 
-### Module 4: Categorical PCA and Mahalanobis Distance Calculation
-`4_Category PCA and Mahalanobis distances`
+![module 3 and 4 B](https://github.com/user-attachments/assets/d3a40558-167b-483f-9476-117413d1cb02)
 
