@@ -53,5 +53,5 @@ row <- list(conc = as.numeric(test_chem$concentration),
   concRespCore(row, conthits = TRUE, aicc = FALSE, force.fit = FALSE,  bidirectional = TRUE,
                fitmodels=c("cnst", "hill", "poly1", "poly2", "pow", "exp2", "exp3","exp4", "exp5"))
 ```
-![module 3 and 4B](https://github.com/user-attachments/assets/627f49fb-532c-4574-8c92-a2f1eba32e30)
+![module 3 and 4B](https://github.com/user-attachments/assets/992f180f-dfad-4c3d-bdef-c1f6b834c168)
 
