@@ -35,12 +35,12 @@ Each Columbus output file contains measurements for 1384 image features for all 
 
 ### Pipeline Modules
 
-![module 1 and 2](https://github.com/user-attachments/assets/b392131e-f9fb-4c08-95f8-d918ba0a7605)
+![module 1 and 2](https://github.com/user-attachments/assets/8093f4cc-696c-40d0-a46b-2feb3cee45f1)
 <br/>
+<br/>
+![module 3 and 4](https://github.com/user-attachments/assets/a0002a7a-37a6-4b13-beb9-fe0ee3338195)
 <br/>
 
-![module 3 and 4](https://github.com/user-attachments/assets/492a3a4a-2b43-4a07-9316-0b44f0dfe68b)
-<br/>
 ```r
 row <- list(conc = as.numeric(test_chem$concentration),
               resp = test_chem$mahal_dist,
@@ -53,7 +53,5 @@ row <- list(conc = as.numeric(test_chem$concentration),
   concRespCore(row, conthits = TRUE, aicc = FALSE, force.fit = FALSE,  bidirectional = TRUE,
                fitmodels=c("cnst", "hill", "poly1", "poly2", "pow", "exp2", "exp3","exp4", "exp5"))
 ```
-<br/>
-
-![module 3 and 4 B](https://github.com/user-attachments/assets/d3a40558-167b-483f-9476-117413d1cb02)
+![module 3 and 4B](https://github.com/user-attachments/assets/627f49fb-532c-4574-8c92-a2f1eba32e30)
 
