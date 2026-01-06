@@ -27,6 +27,11 @@ viridis
 
 ```r
 install.packages(c("caret", "cowplot", "factoextra", "ggrepel", "gridExtra", "MASS", "patchwork", "purrr", "readxl", "RColorBrewer", "stats", "stringr", "tcplfit2", "tidyverse", "viridis"))
+
+libraries <- c("caret", "cowplot", "factoextra", "ggrepel", "gridExtra", "MASS", "patchwork", "purrr", "readxl", "RColorBrewer", "stats", "stringr", "tcplfit2", "tidyverse", "viridis")
+
+lapply(libraries, library, character.only = TRUE)
+
 ```
 
 ### Input Data Format and File Organization
