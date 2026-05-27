@@ -1,10 +1,4 @@
-################################################################################
-# Pipeline to normalize cell painting data
-# Written By: Eunnara Cho
-# Date: April 2024 
-################################################################################
-
-# load libraries
+#Libraries
 library(readxl)
 library(dplyr)
 library(stats)
@@ -18,9 +12,6 @@ library(tictoc)
 # Files (.csv) from each plate are saved in separate sub-folders within the main folder. Plate maps (.xlsx) are saved in the main folder
 # Data from Columbus have been filtered by nuclear area (>20, <900) and cell area (>100, <6700)
 
-normalizeCP <- function(folder_path){
-  tic()
-  
 ############################Load data and plate maps############################
 print("Loading plate maps and feature files")
 
@@ -40,13 +31,19 @@ if(any(is.na(df_pm$plate_no))){
 
 df_pm$plate_no <- as.character(df_pm$plate_no)
 
-###Multiple vehicle controls
-ctrl_group <- unique(df_pm$Control)
+df_pm <- df_pm %>% 
+  filter(Chemical != 0)
 
 #Add a column for plate number and combine results for multiple plates
 ##Get plate number from folder name
 compile_csv <- function(folder_path, plate_no) {
-    rbindlist(lapply(list.files(folder_path, full.names = TRUE, pattern = "[A-H](1[0-2]|[1-9])", recursive = TRUE), fread), use.names = TRUE) %>%
+    rbindlist(lapply(list.files(folder_path, full.names = TRUE,
+                                pattern = "[A-H](1[0-2]|[1-9])",
+                                recursive = TRUE
+                                ),
+                     fread
+                     ),
+              use.names = TRUE) %>%
     mutate(plate_no = str_extract(plate_no,"(?<=-)(\\d+)(?=\\[)|(?i)(?<=plate[ _])\\d+")) %>%  # "(?i)(?<=plate[ _])\\d+")) %>%
     relocate(plate_no, .after = "WellName")
   }
@@ -101,10 +98,6 @@ df_f <- df_f %>%
 #Remove columns with all NA
 df_f <- df_f[, colSums(is.na(df_f)) < nrow(df_f)]
 
-############################## .rds files provided to Andrew
-saveRDS(df_f, "Definitive study_cell_lev_rep4.rds")
-##################################################################
-
 #Join well ID and plate number
 df_f$Well <- paste(df_f$Well, df_f$plate_no, sep = "_")
 
@@ -117,7 +110,7 @@ df_f <- df_f %>%
 test_chem <- df_f
 
 ##calculate ctrl(solvent) median and median absolute deviation (MAD) using all control cells across the plates
-ctrl_cells <- subset(df_f,  Chemical %in% ctrl_group)
+ctrl_cells <- subset(test_chem,  Chemical %in% ctrl_group)
 
 #Average cell count (cc) per well
 ctrl_avg_cc <- ctrl_cells[, c(1,3)] %>%
@@ -192,7 +185,7 @@ print("Scaling well-level data to SD of vehicle control")
 
 ctrl_SD_w <- test_chem_well[test_chem_well$Chemical == ctrl_group, ] %>%
   dplyr::select(-c(Well, Chemical, Concentration)) %>%
-  summarise_all(mean, na.rm = TRUE)
+  summarise_all(sd, na.rm = TRUE)
 
 ctrl_SD_w <- ctrl_SD_w[rep(1, nrow(test_chem_well)), ] 
 
@@ -215,20 +208,20 @@ list_results <- list(
 
 names(list_results) <- c("test_chem", "test_chem_cc", "test_chem_well")
 
-toc()
-
-return(list_results)
-
 ##Well- and treatment-level data to export
 print("Saving well-level data as a .csv file and list_results as a .RData file")
 
 write.csv(test_chem_well, paste0(Sys.Date(), "_",basename(folder_path), "_Well-level data.csv"), row.names = FALSE)
 
-}
+#Save list_results as a .RData file (large file)
+#save(list_results, file = paste0("Normalized_CP_output_",basename(folder_path), ".RData")) 
 
-list_results <- normalizeCP(folder_path)
+#Create a data frame for normalized well-level data for the downstream steps 
+test_chem_well <- as.data.frame(list_results["test_chem_well"])
 
-save(list_results, file = paste0("Normalized_CP_output_",basename(folder_path), ".RData")) 
+colnames(test_chem_well) <- str_remove(colnames(test_chem_well), "test_chem_well.")
+
+colnames(test_chem_well)[1] <- "WellID_PlateNo"
 
 
 

@@ -6,6 +6,11 @@ library(tcplfit2)
 library(ggrepel)
 library(cowplot)
 
+#Create new folder for categorical results
+results_folder <- "Categorical analysis_results"
+dir.create(results_folder)
+results_dir <- paste0(getwd(),"/", results_folder, "/")
+
 #Filter out categories with fewer than 2 features
 cat_lev_data <- test_chem_well_cat %>%
   group_by(features) %>%
@@ -122,15 +127,15 @@ lapply(chem_list, function(x){
     theme(legend.position="none",
           axis.title.x = element_text(size = 20, margin = margin(t=15)),
           axis.title.y = element_text(size = 20, margin = margin(r=15), angle = 90),
-          axis.text.x = element_text(size = 10, colour = "black"),
-          axis.text.y = element_text(size = 10, colour = "black"),
-          strip.text.x = element_text(size = 9, face = "bold"),
+          axis.text.x = element_text(size = 11, colour = "black"),
+          axis.text.y = element_text(size = 11, colour = "black"),
+          strip.text.x = element_text(size = 12, face = "bold"),
           strip.background =element_rect(fill=NA),
           axis.line=element_line(linewidth = 1)) +
     facet_wrap(vars(feat), scales = "free") 
   
   
-  ggsave(paste0(results_dir, paste0(x, collapse = "_"), "_Categorical mahalnobis.jpeg"), 
+  ggsave(paste0(paste0(x, collapse = "_"), "_Categorical mahalnobis.jpeg"), 
          plot,
          width = 45, height = 45, units = "cm")
   })
@@ -198,39 +203,41 @@ tcpl_results_cat <- tcpl_results_cat[!is.na(tcpl_results_cat$bmdu) & !is.na(tcpl
 
 tcpl_results_cat <- tcpl_results_cat %>% filter(chem != "Sorbitol" & chem != "Staurosporine") %>% filter(hitcall>0.90)
 
-tcpl_results_cat$chem <- recode(tcpl_results_cat$chem,
-       "5-Nitro-2-(3-phenylpropylamino)benzoic acid" = "NPPB")
+#tcpl_results_cat$chem <- recode(tcpl_results_cat$chem,
+#       "5-Nitro-2-(3-phenylpropylamino)benzoic acid" = "NPPB")
 
 #Model error parameter cutoff
 tcpl_results_cat <- tcpl_results_cat %>%
-  filter(er<0.99)
+  filter(er<0.99) 
 
 tcpl_results_cat$exp <- exp_name
 
 chem <- paste(unique(tcpl_results_cat$chem), collapse ="_")
 
+
 #Plot all BMC, BMCU, and BMCL together
-BMC_plot <- ggplot(tcpl_results_cat, aes(x=bmd, y=feat, colour=feat)) +
-  geom_point(size=2) +
+BMC_plot <- ggplot(test_dist_cat, aes(x=bmd, y=feat, colour=feat)) +
+  geom_point(size=3) +
   geom_errorbar(aes(xmin = bmdl, xmax = bmdu), width = 0.2) +
   scale_x_log10() +
-  xlab("Best BMC (1SD above vehicle control) \u03BCM") +
-  ylab("Category") +
+  xlab("Best BMC (1MAD above vehicle control median) \u03BCM") +
+  ylab("Feature Category") +
   theme_bw() +
   theme(legend.position="none",
-        axis.title.x = element_text(size = 13, margin = margin(t=15)),
-        axis.title.y = element_text(size = 13),
-        axis.text.x = element_text(size = 10, colour = "black"),
+        axis.title.x = element_text(size = 17, margin = margin(t=20)),
+        axis.title.y = element_text(size = 17),
+        axis.text.x = element_text(size = 12, colour = "black"),
         axis.text.y = element_text(size = 6, colour = "black",margin=margin(r=5)),
-        strip.text.x = element_text(size = 9, face = "bold"),
+        strip.text.x = element_text(size = 12, face = "bold"),
         strip.background =element_rect(fill=NA),
         panel.border = element_rect(color = 'black', 
                                     fill = NA, 
                                     linewidth = 1)) +
   facet_wrap(vars(chem))
   
+BMC_plot
 
-ggsave(paste0(results_dir,"_", ctrl_group,"_Categorical BMC.jpeg"),
+ggsave(paste0("Categorical BMC_testchems.jpeg"),
        BMC_plot,
        width = 25, height = 35, units = "cm")
 

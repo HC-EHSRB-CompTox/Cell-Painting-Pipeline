@@ -20,6 +20,9 @@ colnames(cell_count) <- gsub("test_chem_cc.", "", colnames(cell_count))
 
 cell_count$plate_no <- str_extract(cell_count$Well, "(?<=_)(\\d+)")
 
+#cell_count <- cell_count %>%
+#  mutate(Chemical = ifelse(Chemical %in% c("Untreated", "DMSO"), "Control", Chemical))
+
 cell_count[cell_count$Chemical == ctrl_group,]$Concentration <- 1
 
 cell_count_avg <- cell_count %>%
@@ -31,9 +34,10 @@ cell_count_avg$relative_cc <- cell_count_avg$Average_cc/cell_count_avg[cell_coun
 
 cell_count_avg$SD_rel_cc <- cell_count_avg$relative_cc*sqrt((cell_count_avg$SD/cell_count_avg$Average_cc)^2 + (cell_count_avg[cell_count_avg$Chemical == ctrl_group, ]$SD/cell_count_avg[cell_count_avg$Chemical == ctrl_group, ]$Average_cc)^2)
 
-#cut-off for reduction in cell count
+#####cut-off for reduction in cell count#####
 cytotoxic_conc <- cell_count_avg %>%
   filter(relative_cc < 0.2)
+#############################################
 
 relative_cell_count <- ggplot(cell_count_avg[cell_count_avg$Chemical != ctrl_group,], aes(x = Concentration, y = relative_cc, colour = Chemical)) +
     geom_point() +
@@ -131,12 +135,6 @@ cellcount_hm <- ggplot(plate_cell_count, aes(x = Column, y = Row, fill = cell_co
   labs(title = "Cell count across 9 fields of view (96-well plate)", x = "Columns", y = "Rows", fill = "Cell Count") +
   facet_grid(rows=vars(Plate))
 
-###########################################################################
-#Exclude wells with >50% reduction in relative cell count
-test_chem_well <- test_chem_well %>%
-  filter(!paste(test_chem_well.Chemical, test_chem_well.Concentration) %in% paste(cytotoxic_conc$Chemical, cytotoxic_conc$Concentration))
-
-###########################################################################
 
 variances <- apply(test_chem_well, 2, var)
 variances[1:4] <- 1

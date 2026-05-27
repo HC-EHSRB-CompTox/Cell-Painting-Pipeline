@@ -9,7 +9,13 @@ library(cowplot)
 library(MASS)
 library(gridExtra)
 
+#Create new folder for global results
+results_folder <- "Global_analysis_results"
+dir.create(results_folder)
+results_dir <- paste0(getwd(),"/", results_folder, "/")
+
 #test_chem_well.RData as input
+well_data <- test_chem_well
 
 #Eliminate feats with no variance across samples
 variances <- apply(well_data, 2, var)
@@ -21,7 +27,6 @@ if(length(no_var) != 0 & is.numeric(no_var)){
 
 #Principal component analysis (PCA)
 pca <- prcomp(well_data, center = TRUE, scale = TRUE)
-#pca_x <- pca$x
 
 #Scree plot
 scree_plot <- fviz_eig(pca, addlabels = T, ylim = c(0,75), main = paste0("Scree plot"))  
@@ -30,15 +35,22 @@ scree_plot
 #Calculate the number of PCs that describe >95% variance
 cumulative_prop <- cumsum(pca$sdev^2)/sum(pca$sdev^2)
 
-PC_90 <- length(which(cumulative_prop<0.90))+1
+#PC_90 <- length(which(cumulative_prop<0.90))+1
 PC_95 <- length(which(cumulative_prop<0.95))+1
-PC_99 <- length(which(cumulative_prop<0.99))+1
+#PC_99 <- length(which(cumulative_prop<0.99))+1
 
 #Rotation Matrix
 a <- ncol(pca$rotation)
 
 pca_x <- as.data.frame(pca$x)
 pca_x <- as.data.frame(cbind(chem = rownames(well_data), pca_x)) 
+
+####SD >1
+#pca_x <- pca$x[, pca$sdev > 1, drop = FALSE]
+
+#pca_x <- as.data.frame(cbind(chem = rownames(well_data), pca_x)) 
+####
+
 
 ctrl_pc <- pca_x %>%
   filter(grepl(ctrl_group, chem))
@@ -49,6 +61,7 @@ ctrl_pc <- ctrl_pc[,-c(1)]
 ctrl_mean <- apply(ctrl_pc, 2, mean)
 
 dat <- as.matrix(well_data) %*% pca$rotation[,1:PC_95]
+#dat <- pca$x[, 1:PC_95]
 
 #Covariance Matrix
 Cov <- cov(dat)
@@ -64,6 +77,9 @@ solved_cov <- ginv(Cov)
 mahal_dist <- mahalanobis(dat, ctrl_mean, solved_cov, inverted = T) 
 
 mahal_dist <- as.data.frame(mahal_dist)
+
+#mahal_dist_sq <- sqrt(mahal_dist)
+#mahal_dist <- mahal_dist_sq
 
 mahal_dist <- cbind(chem = rownames(well_data), mahal_dist)
 
@@ -94,6 +110,7 @@ mahal_dist <- rbind(mahal_dist, mahal_ctrl)
 
 mahal_dist$exp <- exp_name
 
+
 ####################
 ##Plot Mahalanobis distances
 
@@ -104,12 +121,16 @@ mahal_dist[mahal_dist$chem == ctrl_group,]$concentration <- 1
 
 lapply(plate, function(plate){
   
-  ggsave(paste0(results_dir, paste0(exp_name), "_", paste0("Plate",plate), "_Global Mahalanobis.jpeg"),
+  ggsave(paste0(results_dir, paste0(exp_name), "_", paste0("Plate",plate), "_Global Mahalanobis_not sqrt.jpeg"),
        
      ggplot(mahal_dist[mahal_dist$Plate == plate,], aes(x=concentration, y=mahal_dist, colour=chem)) + 
-      geom_point() + 
+      geom_point(size=4) + 
       geom_hline(yintercept = median(mahal_ctrl$mahal_dist), linetype = "dashed", color = "maroon4") +
-      geom_ribbon(aes(ymin = median(mahal_ctrl$mahal_dist) - mad(mahal_ctrl$mahal_dist), ymax = median(mahal_ctrl$mahal_dist) + mad(mahal_ctrl$mahal_dist)), fill = "thistle3", colour = NA, alpha = 0.5) +
+      geom_ribbon(aes(ymin = median(mahal_ctrl$mahal_dist) - mad(mahal_ctrl$mahal_dist), 
+                      ymax = median(mahal_ctrl$mahal_dist) + mad(mahal_ctrl$mahal_dist)), 
+                  fill = "thistle3", 
+                  colour = NA, 
+                  alpha = 0.5) +
       scale_y_continuous() +
       scale_x_log10() +
       #scale_color_manual(values = viridis(12)) +
@@ -122,38 +143,49 @@ lapply(plate, function(plate){
             axis.text.x = element_text(size = 12),
             axis.text.y = element_text(size = 12)) +
       facet_wrap(vars(chem), scales = "free") +
-      theme( strip.text.x = element_text(size = 12, face = "bold")),
+      theme( strip.text.x = element_text(size = 12, face = "bold")) ,
       
       width = 50, height = 35, units = "cm") 
   
   })
-
+  
 ggsave(paste0(results_dir, paste0(exp_name), "_Global Mahalanobis.jpeg"),
-       
-       ggplot(mahal_dist, aes(x=concentration, y=mahal_dist, colour=chem)) + 
-         geom_point() + 
-         geom_hline(yintercept = median(mahal_ctrl$mahal_dist), linetype = "dashed", color = "maroon4") +
-         geom_ribbon(aes(ymin = median(mahal_ctrl$mahal_dist) - mad(mahal_ctrl$mahal_dist), ymax = median(mahal_ctrl$mahal_dist) + mad(mahal_ctrl$mahal_dist)), fill = "thistle3", colour = NA, alpha = 0.5) +
-         scale_y_continuous() +
-         scale_x_log10() +
-         #scale_color_manual(values = viridis(12)) +
-         xlab("Concentration (\u03BCM)") +
-         ylab("Mahalanobis Distance") +
-         theme_classic() +
-         theme(legend.position="none",
-               axis.title.x = element_text(size = 17, margin = margin(t=15)),
-               axis.title.y = element_text(size = 17, margin = margin(r=15)),
-               axis.text.x = element_text(size = 12),
-               axis.text.y = element_text(size = 12)) +
-         facet_wrap(vars(chem), scales = "free") +
-         theme( strip.text.x = element_text(size = 12, face = "bold")),
-       
-       width = 50, height = 35, units = "cm") 
+  
+  ggplot(mahal_dist, aes(x=concentration, y=mahal_dist, colour=chem)) + 
+    geom_point(size = 4) + 
+    geom_hline(yintercept = median(mahal_ctrl$mahal_dist), linetype = "dashed", color = "maroon4") +
+    geom_ribbon(aes(ymin = median(mahal_ctrl$mahal_dist) - mad(mahal_ctrl$mahal_dist), 
+                    ymax = median(mahal_ctrl$mahal_dist) + mad(mahal_ctrl$mahal_dist)), 
+                fill = "thistle3", 
+                colour = NA, 
+                alpha = 0.5) +
+    scale_y_continuous() +
+    scale_x_log10() +
+    #scale_color_manual(values = viridis(12)) +
+    xlab("Concentration (\u03BCM)") +
+    ylab("Mahalanobis Distance") +
+    theme_classic() +
+    theme(legend.position="none",
+          axis.title.x = element_text(size = 17, margin = margin(t=15)),
+          axis.title.y = element_text(size = 17, margin = margin(r=15)),
+          axis.text.x = element_text(size = 12),
+          axis.text.y = element_text(size = 12)) +
+    facet_wrap(vars(chem), scales = "free") +
+    theme( strip.text.x = element_text(size = 12, face = "bold")),
+  
+      width = 50, height = 35, units = "cm") 
+
 
 #####Tcplfit2 to derive benchmark concentrations#####
 
 test_chem_res <- mahal_dist %>%
   filter(chem !=ctrl_group)
+
+###########################################################################
+#Exclude wells with >50% reduction in relative cell count
+test_chem_res <- test_chem_res %>%
+  filter(!paste(chem, concentration) %in% paste(cytotoxic_conc$Chemical, cytotoxic_conc$Concentration))
+###########################################################################
 
 chem_list <- unique(test_chem_res$chem)
 
@@ -181,6 +213,9 @@ conc_res_modeling <- function(test_chem, vehicle_ctrl){
   
 }
 
+
+
+
 #Model concentration-response for each chemical and plot individually  
 tcpl_results <- lapply(chem_list, function(x){
   chem_data <- test_chem_res %>%
@@ -188,7 +223,7 @@ tcpl_results <- lapply(chem_list, function(x){
   tcpl_chem <- conc_res_modeling(chem_data, vehicle_ctrl)
   
   if(tcpl_chem$hitcall > 0.9){
-    jpeg(file = paste0(results_dir, "_", x, "_tcplfit.jpg"))
+    jpeg(file = paste0(x, "_tcplfit_curves.jpg"))
     concRespPlot(tcpl_chem, ymin=min(chem_data$mahal_dist)-5, ymax=max(chem_data$mahal_dist)+10, draw.error.arrows = FALSE)
     dev.off()
   }
@@ -197,14 +232,29 @@ tcpl_results <- lapply(chem_list, function(x){
 }) %>%
       do.call(rbind, .)
 
-ggsave(paste0(results_dir, "_Global_BMC.jpeg"), 
+
+tcpl_testchem <- tcpl_results %>%
+  filter(!is.na(bmdl)&!is.na(bmdu))
+
+
+ggsave(paste0("Global_BMC.jpeg"), 
        
        ggplot(tcpl_results, aes(x=bmd, y=name, colour=name)) +
          geom_point(size=2) +
          geom_errorbar(aes(xmin = bmdl, xmax = bmdu), width = 0.2) +
          scale_x_log10() +
-         theme(legend.position="none") +
-         xlab("Median Best BMC (1SD above vehicle control) \u03BCM") +
+         theme_bw() +
+         theme(legend.position="none",
+               axis.title.x = element_text(size = 13, margin = margin(t=15)),
+               axis.title.y = element_text(size = 13),
+               axis.text.x = element_text(size = 10, colour = "black"),
+               axis.text.y = element_text(size = 6, colour = "black",margin=margin(r=5)),
+               strip.text.x = element_text(size = 9, face = "bold"),
+               strip.background =element_rect(fill=NA),
+               panel.border = element_rect(color = 'black', 
+                                           fill = NA, 
+                                           linewidth = 1)) +
+         xlab("Median Best BMC (1MAD above vehicle control) \u03BCM") +
          ylab("Chemicals"),
        
        width = 40, height = 20, units = "cm"
