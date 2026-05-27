@@ -229,7 +229,7 @@ tcpl_testchem <- tcpl_results %>%
   filter(!is.na(bmdl)&!is.na(bmdu))
 
 
-ggsave(paste0("Global_BMC.jpeg"), 
+ggsave(paste0(results_dir,exp_name,"_","Global_BMC.jpeg"), 
        
        ggplot(tcpl_results, aes(x=bmd, y=name, colour=name)) +
          geom_point(size=2) +

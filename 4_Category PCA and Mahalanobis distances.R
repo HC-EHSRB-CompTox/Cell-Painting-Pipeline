@@ -129,7 +129,7 @@ lapply(chem_list, function(x){
     facet_wrap(vars(feat), scales = "free") 
   
   
-  ggsave(paste0(paste0(x, collapse = "_"), "_Categorical mahalnobis.jpeg"), 
+  ggsave(paste0(results_dir,exp_name,"_", paste0(x, collapse = "_"), "_Categorical mahalnobis.jpeg"), 
          plot,
          width = 45, height = 45, units = "cm")
   })
@@ -195,11 +195,6 @@ tcpl_results_cat <- cbind("chem"=split_col[,1], "feat"=split_col[,2], tcpl_resul
 #Eliminate BMCs without ACC and BMCU/BMCL
 tcpl_results_cat <- tcpl_results_cat[!is.na(tcpl_results_cat$bmdu) & !is.na(tcpl_results_cat$acc) & !is.na(tcpl_results_cat$bmdl),]
 
-tcpl_results_cat <- tcpl_results_cat %>% filter(chem != "Sorbitol" & chem != "Staurosporine") %>% filter(hitcall>0.90)
-
-#tcpl_results_cat$chem <- recode(tcpl_results_cat$chem,
-#       "5-Nitro-2-(3-phenylpropylamino)benzoic acid" = "NPPB")
-
 #Model error parameter cutoff
 tcpl_results_cat <- tcpl_results_cat %>%
   filter(er<0.99) 
@@ -210,7 +205,7 @@ chem <- paste(unique(tcpl_results_cat$chem), collapse ="_")
 
 
 #Plot all BMC, BMCU, and BMCL together
-BMC_plot <- ggplot(test_dist_cat, aes(x=bmd, y=feat, colour=feat)) +
+BMC_plot <- ggplot(tcpl_results_cat, aes(x=bmd, y=feat, colour=feat)) +
   geom_point(size=3) +
   geom_errorbar(aes(xmin = bmdl, xmax = bmdu), width = 0.2) +
   scale_x_log10() +
@@ -231,12 +226,12 @@ BMC_plot <- ggplot(test_dist_cat, aes(x=bmd, y=feat, colour=feat)) +
   
 BMC_plot
 
-ggsave(paste0("Categorical BMC_testchems.jpeg"),
+ggsave(paste0(results_dir,exp_name,"_","Categorical BMC_testchems.jpeg"),
        BMC_plot,
        width = 25, height = 35, units = "cm")
 
 #Save tcpl results
-write_csv(tcpl_results_cat, file = paste0(results_dir,exp_name,"_", ctrl_group,"_Category Mahalanobis - tcplResult.csv"))
+write_csv(tcpl_results_cat, file = paste0(results_dir,exp_name,"_Category Mahalanobis - tcplResult.csv"))
 
 
 
