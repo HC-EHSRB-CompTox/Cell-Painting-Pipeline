@@ -1,6 +1,31 @@
 # Files (.csv) from each plate are saved in separate sub-folders within the main folder. Plate maps (.xlsx) are saved in the main folder
 # Data from Columbus have been filtered by nuclear area (>20, <900) and cell area (>100, <6700)
 
+#Libraries
+library(readxl)
+library(dplyr)
+library(stats)
+library(tidyverse)
+library(stringr)
+library(purrr)
+require(caret)
+library(data.table)
+library(tictoc)
+library(viridis)
+library(RColorBrewer)
+library(ggplot2)
+library(stats)
+library(factoextra)
+library(tcplfit2)
+library(ggrepel)
+library(cowplot)
+library(patchwork)
+library(cowplot)
+library(MASS)
+library(gridExtra)
+
+
+
 #Identify the folder where the Columbus output and plate maps are stored
 folder_path <- "D:/Columbus_output_platemaps/2026-02-26 EC ESRAB iPSC[4504]"
 

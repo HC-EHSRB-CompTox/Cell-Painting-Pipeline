@@ -1,14 +1,6 @@
 #Principal Component Analysis of well-level data to reduce dimensionality
 #Global Mahalanobis distance calculations
 
-library(stats)
-library(factoextra)
-library(tcplfit2)
-library(patchwork)
-library(cowplot)
-library(MASS)
-library(gridExtra)
-
 #Create new folder for global results
 results_folder <- "Global_analysis_results"
 dir.create(results_folder)

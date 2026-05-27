@@ -1,17 +1,3 @@
-#Libraries
-library(readxl)
-library(dplyr)
-library(stats)
-library(tidyverse)
-library(stringr)
-library(purrr)
-require(caret)
-library(data.table)
-library(tictoc)
-
-# Files (.csv) from each plate are saved in separate sub-folders within the main folder. Plate maps (.xlsx) are saved in the main folder
-# Data from Columbus have been filtered by nuclear area (>20, <900) and cell area (>100, <6700)
-
 ############################Load data and plate maps############################
 print("Loading plate maps and feature files")
 

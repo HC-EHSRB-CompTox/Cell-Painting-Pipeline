@@ -1,11 +1,5 @@
 #Category level Principal component analysis, Mahalanobis distance calculations, and Concentration-response analysis
 
-library(stats)
-library(factoextra)
-library(tcplfit2)
-library(ggrepel)
-library(cowplot)
-
 #Create new folder for categorical results
 results_folder <- "Categorical analysis_results"
 dir.create(results_folder)

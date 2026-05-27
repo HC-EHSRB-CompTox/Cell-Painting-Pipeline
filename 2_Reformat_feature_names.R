@@ -1,8 +1,3 @@
-library(viridis)
-library(RColorBrewer)
-library(ggplot2)
-library(cowplot)
-
 #Categorize features
 #Formats feature names from Columbus to region_channel_module_category number 
 test_chem_well <- as.data.frame(list_results["test_chem_well"])
