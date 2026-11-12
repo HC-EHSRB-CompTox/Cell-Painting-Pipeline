@@ -69,7 +69,7 @@ cat_mahal_dist <- lapply(ft_cats, function(x){
   
   mahal_dist <- mahalanobis(dat, ctrl_mean, Cov, inverted = F) 
   
-  mahal_dist <- as.data.frame(mahal_dist)
+  mahal_dist <- as.data.frame(sqrt(mahal_dist))
   
   mahal_dist <- cbind(chem = rownames(well_data), mahal_dist)
   

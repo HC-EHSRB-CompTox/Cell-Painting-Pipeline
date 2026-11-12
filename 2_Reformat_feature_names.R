@@ -6,8 +6,9 @@ test_chem_well$plate_no <- str_extract(test_chem_well$test_chem_well.Well, "(?<=
 
 test_chem_well <- test_chem_well %>%
   relocate(plate_no, .after = "test_chem_well.Well")
-
+### remove
 ###############################################################################
+
 #Plot cell count for each chemical
 cell_count <- as.data.frame(list_results["test_chem_cc"])
 
@@ -129,7 +130,7 @@ cellcount_hm <- ggplot(plate_cell_count, aes(x = Column, y = Row, fill = cell_co
         legend.text = element_text(size = 13, colour = "black")) +
   labs(title = "Cell count across 9 fields of view (96-well plate)", x = "Columns", y = "Rows", fill = "Cell Count") +
   facet_grid(rows=vars(Plate))
-
+###########################################################
 
 variances <- apply(test_chem_well, 2, var)
 variances[1:4] <- 1

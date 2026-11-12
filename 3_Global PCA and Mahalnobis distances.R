@@ -62,16 +62,14 @@ Cov <- cov(dat)
 det(Cov)
 isSymmetric(Cov)
 
+
 solved_cov <- ginv(Cov)
 
 #Mahalanobis distance determination
 
 mahal_dist <- mahalanobis(dat, ctrl_mean, solved_cov, inverted = T) 
 
-mahal_dist <- as.data.frame(mahal_dist)
-
-#mahal_dist_sq <- sqrt(mahal_dist)
-#mahal_dist <- mahal_dist_sq
+mahal_dist <- as.data.frame(sqrt(mahal_dist))
 
 mahal_dist <- cbind(chem = rownames(well_data), mahal_dist)
 
@@ -101,7 +99,6 @@ mahal_dist <- mahal_dist %>%
 mahal_dist <- rbind(mahal_dist, mahal_ctrl)
 
 mahal_dist$exp <- exp_name
-
 
 ####################
 ##Plot Mahalanobis distances
@@ -231,7 +228,7 @@ tcpl_testchem <- tcpl_results %>%
 
 ggsave(paste0(results_dir,exp_name,"_","Global_BMC.jpeg"), 
        
-       ggplot(tcpl_results, aes(x=bmd, y=name, colour=name)) +
+       ggplot(tcpl_testchem, aes(x=bmd, y=name, colour=name)) +
          geom_point(size=2) +
          geom_errorbar(aes(xmin = bmdl, xmax = bmdu), width = 0.2) +
          scale_x_log10() +
