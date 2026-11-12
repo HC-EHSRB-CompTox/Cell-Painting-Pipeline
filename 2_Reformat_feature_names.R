@@ -1,12 +1,5 @@
 #Categorize features
 #Formats feature names from Columbus to region_channel_module_category number 
-test_chem_well <- as.data.frame(list_results["test_chem_well"])
-
-test_chem_well$plate_no <- str_extract(test_chem_well$test_chem_well.Well, "(?<=_)(\\d+)")
-
-test_chem_well <- test_chem_well %>%
-  relocate(plate_no, .after = "test_chem_well.Well")
-### remove
 ###############################################################################
 
 #Plot cell count for each chemical
