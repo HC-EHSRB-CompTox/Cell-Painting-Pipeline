@@ -205,9 +205,11 @@ write.csv(test_chem_well, paste0(Sys.Date(), "_",basename(folder_path), "_Well-l
 #Create a data frame for normalized well-level data for the downstream steps 
 test_chem_well <- as.data.frame(list_results["test_chem_well"])
 
+test_chem_well$plate_no <- str_extract(test_chem_well$test_chem_well.Well, "(?<=_)(\\d+)")
+
+test_chem_well <- test_chem_well %>%
+  relocate(plate_no, .after = "test_chem_well.Well")
+
 colnames(test_chem_well) <- str_remove(colnames(test_chem_well), "test_chem_well.")
-
-colnames(test_chem_well)[1] <- "WellID_PlateNo"
-
 
 

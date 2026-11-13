@@ -1,4 +1,4 @@
-#Categorize features
+#Categorize features - assign category and feature numbers
 #Formats feature names from Columbus to region_channel_module_category number 
 ###############################################################################
 

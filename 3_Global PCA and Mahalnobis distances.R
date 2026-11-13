@@ -69,7 +69,7 @@ solved_cov <- ginv(Cov)
 
 mahal_dist <- mahalanobis(dat, ctrl_mean, solved_cov, inverted = T) 
 
-mahal_dist <- as.data.frame(sqrt(mahal_dist))
+mahal_dist <- as.data.frame(mahal_dist)
 
 mahal_dist <- cbind(chem = rownames(well_data), mahal_dist)
 
@@ -79,7 +79,7 @@ colnames(sample) <- "sample"
 sample <- tibble(sample) %>%
   separate(sample, c("chem", "concentration", "Well", "Plate"), sep = "_", remove = T)
 
-mahal_dist <- cbind(sample, mahal_dist = mahal_dist$mahal_dist)
+mahal_dist <- cbind(sample, mahal_dist = sqrt(mahal_dist$mahal_dist))
 
 #mahal_dist <- mahal_dist %>%
 #  dplyr::select(-c("Plate"))
